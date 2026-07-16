@@ -2,10 +2,10 @@
 
 Chaque étape est petite, testable indépendamment, et laisse le projet dans un état fonctionnel (rien de « à moitié câblé »). Aucune étape ne commence avant validation de `PRODUCT_REQUIREMENTS.md`, `ARCHITECTURE.md`, `supabase/migrations/0001_init.sql` et `SECURITY.md`.
 
-## Étape 0 — Validation (en cours)
+## Étape 0 — Validation
 
-- Revue par BOMOI des 4 documents + réponse aux points ouverts (`PRODUCT_REQUIREMENTS.md` §0).
-- Décision sur les durées de conservation définitives (§6.3).
+- [x] Revue par BOMOI des 4 documents + réponse aux points ouverts (`PRODUCT_REQUIREMENTS.md` §0) — validé le 16/07/2026.
+- [ ] Décision sur les durées de conservation définitives (§6.3) — toujours ouvert, n'empêche pas de démarrer le développement (le code est structuré pour permettre une purge par date dès que les durées seront confirmées).
 
 ## Étape 1 — Socle projet
 

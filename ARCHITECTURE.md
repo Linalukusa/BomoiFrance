@@ -71,10 +71,19 @@ lib/
     queue.ts                       # file IndexedDB + logique de sync
   validation/
     activity.ts, orientation.ts, barrier.ts   # schémas Zod partagés client/serveur
+  config/
+    options.ts                     # listes fixes non stockées en base (campus, suggestions "support utilisé")
 supabase/
   migrations/
     0001_init.sql
 ```
+
+## 3bis. Listes fixes côté configuration (pas de table dédiée)
+
+Deux listes sont volontairement gérées comme des constantes applicatives (`lib/config/options.ts`) plutôt que comme des tables Supabase, pour rester alignées avec le principe de minimalisme des 9 tables :
+
+- **Campus/université** (champ `activities.campus`, texte libre en base) : liste suggérée à l'UI (Toulouse III – Paul Sabatier, Toulouse Capitole, Toulouse – Jean Jaurès, INSA Toulouse, Toulouse INP), modifiable sans migration si BOMOI ajoute un campus partenaire.
+- **Support utilisé** (champ `activities.support_used`, texte libre en base) : liste verrouillée avec BOMOI — flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre (chips + champ libre si « autre »).
 
 ## 4. Authentification et gestion des comptes
 

@@ -174,7 +174,6 @@ create table public.activities (
     'conversation_individuelle', 'petit_groupe', 'atelier', 'stand',
     'reunion_associative', 'whatsapp', 'reseaux_sociaux', 'evenement', 'presence_collecte'
   )),
-  mode text check (mode in ('individuel', 'groupe')),
   people_reached integer not null default 0 check (people_reached >= 0),
   meaningful_conversations integer not null default 0
     check (meaningful_conversations >= 0 and meaningful_conversations <= people_reached),
@@ -188,6 +187,7 @@ create table public.activities (
   updated_at timestamptz not null default now()
 );
 
+comment on column public.activities.support_used is 'Texte libre. Suggestions verrouillées côté UI (chips + Autre) : flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre. Pas de contrainte DB pour permettre la saisie libre via "Autre".';
 comment on column public.activities.note is 'Note libre anonyme — ne doit jamais contenir de nom, contact ou donnée médicale (contrôle applicatif, pas de contrainte DB possible sur du texte libre).';
 
 alter table public.activities enable row level security;

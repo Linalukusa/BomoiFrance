@@ -1,20 +1,16 @@
 # BOMOI Mediation Hub — Cahier des charges produit (V1)
 
-Statut : **brouillon soumis à validation**. Aucune ligne de code applicatif n'a été écrite à ce stade — ce document, l'architecture, le schéma de données et les politiques de sécurité doivent être validés par BOMOI avant le début du développement.
+Statut : **validé par BOMOI le 16/07/2026**. Le développement peut démarrer sur la base de ce document, de l'architecture, du schéma de données et des politiques de sécurité.
 
-## 0. Points ouverts à valider avant de démarrer le développement
+## 0. Décisions de validation
 
-Les maquettes HTML fournies (Claude Design) ont servi de référence pour le design et la structure des écrans. En les confrontant au cahier des charges texte, quelques écarts sont apparus. Le texte fait foi sur le fonctionnel ; voici les points où j'ai tranché par défaut et qui méritent une confirmation rapide de votre part :
+Les points ouverts soumis à BOMOI ont été tranchés comme suit :
 
-| # | Sujet | Maquette | Cahier des charges texte | Choix retenu pour ce document | À confirmer |
-|---|---|---|---|---|---|
-| 1 | Compteur d'orientations sur le formulaire d'activité | Stepper numérique manuel « Nombre d'orientations » | Compteur **calculé** à partir des orientations réellement créées et liées à l'activité, avec bouton « + Ajouter une orientation » | Compteur calculé (pas de champ manuel redondant) — cohérent avec la règle « aucun doublon de saisie » et avec `orientations.activity_id` | Oui/Non |
-| 2 | Statuts de suivi d'une orientation | 5 statuts (dont « Rendez-vous déclaré ») | 4 statuts listés explicitement | 4 statuts du texte (information transmise / lien EFS partagé / intéressé / présence confirmée) | Ajouter « Rendez-vous déclaré » en 5e statut ? |
-| 3 | Champ « individuel / groupe » sur l'activité | Absent de la maquette | Champ explicite distinct du type d'activité | Ajouté (select ou toggle, optionnel selon le type) | Confirmer l'utilité vs. redondance avec le type d'activité |
-| 4 | Champ « support utilisé » | Absent de la maquette | Champ explicite | Ajouté en texte libre + suggestions (flyer, affiche, brochure, vidéo, aucun, autre) | Confirmer la liste de suggestions |
-| 5 | « Collecte concernée » sur l'orientation | Menu déroulant, valeurs non détaillées | — | Référence la table `aggregate_collection_results` (créée à l'avance par l'admin pour les 2 collectes du programme), nullable si l'orientation vise la « maison du don » ou la plateforme EFS plutôt qu'une collecte précise | Confirmer |
-
-Le reste de ce document part de ces choix par défaut. Toute correction sera répercutée avant le début du développement.
+1. Compteur d'orientations sur le formulaire d'activité : **calculé** à partir des orientations réellement créées et liées à l'activité (pas de champ manuel redondant).
+2. Statuts de suivi d'une orientation : **4 statuts**, pas de « Rendez-vous déclaré » — un médiateur ne peut pas confirmer qu'un rendez-vous a réellement été pris, ce serait une déclaration non vérifiable. Point à rediscuter en V2 avec l'EFS si une granularité supplémentaire s'avère utile.
+3. Champ « individuel ou groupe » sur l'activité : **supprimé**, redondant avec le type d'activité qui porte déjà cette information.
+4. Champ « support utilisé » : **conservé**, avec une liste de suggestions verrouillée : flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre.
+5. « Collecte concernée » sur l'orientation : **nullable**, référence `aggregate_collection_results` — confirmé tel quel.
 
 ## 1. Contexte et objectifs
 
@@ -94,11 +90,10 @@ Une seule page scrollable (pas de wizard). Champs :
 | Date | date | requis, ≤ aujourd'hui |
 | Lieu / université | select (liste de campus configurée) | requis |
 | Type d'activité | chips à sélection unique (9 valeurs : conversation individuelle, petit groupe, atelier, stand, réunion associative, WhatsApp, réseaux sociaux, événement, présence collecte) | requis |
-| Individuel ou groupe | toggle/select | optionnel |
 | Personnes atteintes | stepper +/− | ≥ 0 |
 | Conversations significatives | stepper +/− | ≥ 0 et ≤ personnes atteintes |
 | Personnes intéressées | stepper +/− | ≥ 0 et ≤ personnes atteintes |
-| Support utilisé | texte libre / suggestions | optionnel |
+| Support utilisé | chips à sélection unique + « Autre » en texte libre (flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre) | optionnel |
 | Durée | chips à sélection unique (15 min / 30 min / 45 min / 1h / 1h30 / 2h+) | optionnel |
 | Note anonyme | texte libre | optionnel — jamais de nom, contact ou donnée médicale |
 

@@ -26,53 +26,49 @@ Aucun backend séparé. Les seules opérations privilégiées (invitation d'un m
 - **Vercel** — hébergement, variables d'environnement, déploiements preview par PR.
 - **Recharts** (ou équivalent léger) — graphiques simples du dashboard (courbe de progression, barres de répartition), cohérent avec le rendu sobre des maquettes.
 
-## 3. Structure du projet (proposée)
+## 3. Structure du projet
+
+État réel après l'Étape 2 (les entrées marquées « à venir » restent planifiées telles quelles pour les étapes suivantes) :
 
 ```
+proxy.ts                           # ex-middleware.ts (renommage Next.js 16) : session + gating
 app/
+  page.tsx                         # filet de sécurité, redirige toujours vers /login
   (auth)/
     login/page.tsx                 # saisie e-mail, envoi du lien magique
-    onboarding/page.tsx            # charte + RGPD, bloque tant que non accepté
+    onboarding/
+      page.tsx                     # charte + RGPD, bloque tant que non accepté
+      OnboardingForm.tsx
+      actions.ts                   # Server Action, valide et horodate côté serveur
+  auth/
+    confirm/route.ts               # point d'entrée unique des liens e-mail (verifyOtp)
+    signout/route.ts
   (mediator)/
-    layout.tsx                     # layout mobile, nav basse (Accueil/Activité/Orientation/Freins)
-    accueil/page.tsx
-    activites/
-      page.tsx                     # liste + état vide + badge "à compléter"
-      nouveau/page.tsx             # formulaire une page, orientation intégrée
-      [id]/page.tsx                # détail/édition + actions rapides
-    orientations/
-      page.tsx
-      nouveau/page.tsx
-      [id]/page.tsx
-    freins/
-      page.tsx
-      nouveau/page.tsx
-    statistiques/page.tsx          # "Mes statistiques"
-    profil/page.tsx
+    layout.tsx
+    accueil/page.tsx               # à enrichir Étape 3+ (activités, orientations, freins)
   (coordinator)/
-    layout.tsx                     # layout desktop/tablette
-    dashboard/page.tsx             # sections 0 à 4
+    layout.tsx
+    dashboard/page.tsx             # placeholder, sections 0-4 à venir Étape 8
     mediateurs/
-      page.tsx                     # liste + invitation
-      [id]/page.tsx                # fiche, édition (hors rôle), historique
-    collectes/
-      page.tsx                     # CRUD aggregate_collection_results (admin only pour résultats)
-    comptes/page.tsx               # gestion rôles — admin only
-  r/[slug]/route.ts                # redirection courte EFS (302 + incrément compteur, service role)
+      nouveau/
+        page.tsx                   # invitation (formulaire)
+        actions.ts                 # Server Action service_role
+      page.tsx                     # à venir Étape 9 : liste + fiche médiateur
+  SignOutButton.tsx
+  r/[slug]/route.ts                # à venir Étape 4 : redirection courte EFS
   api/
-    invite-mediator/route.ts       # admin/coordinator only, service role
-    set-role/route.ts              # admin only, service role
+    health/route.ts
 lib/
   supabase/
     client.ts                      # client navigateur (anon key, RLS)
     server.ts                      # client serveur (session utilisateur, RLS)
     admin.ts                       # client service_role, usage strictement serveur, jamais importé côté client
-  offline/
-    queue.ts                       # file IndexedDB + logique de sync
-  validation/
-    activity.ts, orientation.ts, barrier.ts   # schémas Zod partagés client/serveur
+    middleware.ts                  # updateSession(), logique de gating utilisée par proxy.ts
+  site-url.ts                      # URL publique du site pour les redirections e-mail
   config/
     options.ts                     # listes fixes non stockées en base (campus, suggestions "support utilisé")
+  validation/                      # à venir : schémas Zod partagés client/serveur (Étape 3+)
+  offline/                         # à venir Étape 6 : file IndexedDB + logique de sync
 supabase/
   migrations/
     0001_init.sql

@@ -7,20 +7,23 @@ Chaque étape est petite, testable indépendamment, et laisse le projet dans un 
 - [x] Revue par BOMOI des 4 documents + réponse aux points ouverts (`PRODUCT_REQUIREMENTS.md` §0) — validé le 16/07/2026.
 - [ ] Décision sur les durées de conservation définitives (§6.3) — toujours ouvert, n'empêche pas de démarrer le développement (le code est structuré pour permettre une purge par date dès que les durées seront confirmées).
 
-## Étape 1 — Socle projet
+## Étape 1 — Socle projet ✅ validée
 
-- Initialisation Next.js (App Router, TypeScript, Tailwind), lint/format (ESLint, Prettier).
-- Configuration Tailwind avec les tokens de couleur/typographie du design system (§3 du PRD).
-- Projet Supabase créé, application de `0001_init.sql`, vérification RLS (checklist `SECURITY.md` §9).
-- Déploiement Vercel « hello world » connecté au repo, variables d'environnement configurées.
-- **Critère de fin** : build qui déploie, connexion à Supabase vérifiée par une requête simple depuis une route de test.
+- [x] Initialisation Next.js (App Router, TypeScript, Tailwind), lint/format (ESLint, Prettier).
+- [x] Configuration Tailwind avec les tokens de couleur/typographie du design system (§3 du PRD).
+- [x] Projet Supabase créé, application de `0001_init.sql`, vérification RLS (checklist `SECURITY.md` §9).
+- [x] Déploiement Vercel connecté au repo, variables d'environnement configurées.
+- **Critère de fin** : build qui déploie, connexion à Supabase vérifiée par une requête simple depuis une route de test — validé le 16/07/2026 sur https://bomoi-mediation-hub.vercel.app/, `/api/health` renvoie `{"ok":true,"barriersSeeded":11}`.
 
 ## Étape 2 — Authentification et onboarding
 
-- Écran de connexion (lien magique), page d'attente/callback.
-- Flux d'invitation admin → création `profiles`/`mediators` (Route Handler service_role).
-- Écran d'onboarding (charte + RGPD, deux cases horodatées), middleware de redirection tant que non complété.
-- **Critère de fin** : un admin peut inviter un médiateur de test, qui se connecte, passe l'onboarding, arrive sur un écran d'accueil vide.
+- [x] Écran de connexion (lien magique) — `app/(auth)/login`.
+- [x] Point d'entrée unique pour les liens e-mail (connexion et invitation) — `app/auth/confirm/route.ts` (`verifyOtp`).
+- [x] Flux d'invitation admin/coordinateur → création `profiles`/`mediators` — `app/(coordinator)/mediateurs/nouveau` (Server Action, `service_role`).
+- [x] Écran d'onboarding (charte + RGPD, deux cases horodatées) — `app/(auth)/onboarding`.
+- [x] Proxy (`proxy.ts`, ex-middleware) : session obligatoire, redirection `/onboarding` tant que non complété, séparation zones médiateur/coordinateur.
+- [x] Écrans d'atterrissage minimaux — `app/(mediator)/accueil`, `app/(coordinator)/dashboard`.
+- **Critère de fin** : un admin peut inviter un médiateur de test, qui se connecte, passe l'onboarding, arrive sur un écran d'accueil vide. **Code prêt, à vérifier en conditions réelles** — voir la checklist de configuration Supabase/Vercel avant test dans le message de livraison.
 
 ## Étape 3 — Formulaire « Nouvelle activité » (sans orientation intégrée)
 

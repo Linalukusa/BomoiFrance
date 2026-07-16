@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/*
+ * Tokens de design extraits des maquettes Claude Design (BOMOI Mediation Hub).
+ * Voir PRODUCT_REQUIREMENTS.md §3 — ne pas réinventer, ne pas ajouter de couleurs hors palette.
+ */
+@theme {
+  --color-bomoi-red: #c81e3a;
+  --color-ink: #171412;
+
+  --color-page: #edeae8;
+  --color-card: #ffffff;
+  --color-card-alt: #f6f4f3;
+
+  --color-text-strong: #171412;
+  --color-text-secondary: #4a4542;
+  --color-text-muted: #6b6462;
+  --color-text-placeholder: #9c9490;
+
+  --color-border: #d9d5d3;
+  --color-border-soft: #dddad5;
+  --color-border-subtle: #e4dfdc;
+
+  --color-error-bg: #2a1215;
+  --color-error-text: #ff8a80;
+  --color-error-border: #5c2b2e;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-text-strong);
+}

@@ -41,7 +41,9 @@ app/
       OnboardingForm.tsx
       actions.ts                   # Server Action, valide et horodate côté serveur
   auth/
-    confirm/route.ts               # point d'entrée unique des liens e-mail (verifyOtp)
+    confirm/
+      page.tsx                     # page d'atterrissage des liens e-mail — n'agit jamais tout seul
+      actions.ts                   # verifyOtp/exchangeCodeForSession, déclenché uniquement par le clic (voir §4)
     signout/route.ts
   (mediator)/
     layout.tsx
@@ -85,7 +87,8 @@ Deux listes sont volontairement gérées comme des constantes applicatives (`lib
 
 - Pas d'auto-inscription. Un admin ou coordinateur invite un médiateur (e-mail) depuis `mediateurs/page.tsx` → Server Action → `supabase.auth.admin.inviteUserByEmail()` (clé service_role, côté serveur) → création simultanée des lignes `profiles` (role=`mediator`) et `mediators` dans la même transaction applicative.
 - Connexion : lien magique envoyé par Supabase Auth. Pas de mot de passe à gérer, pas de flux d'inscription libre.
-- Première connexion → redirection forcée vers `/onboarding` tant que `mediators.charter_accepted_at` et `mediators.privacy_accepted_at` sont `NULL`. Un middleware Next.js vérifie cet état sur chaque route protégée.
+- Le lien reçu par e-mail pointe vers `/auth/confirm?token_hash=...&type=...`, une **page** qui n'effectue aucune action automatique — elle affiche juste un bouton « Se connecter ». La consommation réelle du jeton (`verifyOtp`) n'a lieu que sur clic explicite, via une Server Action (`actions.ts`, donc une requête POST). Nécessaire car les jetons sont à usage unique et de nombreux clients e-mail (aperçus de lien Gmail, Safe Links Outlook, scanners de sécurité) suivent automatiquement les liens GET des e-mails pour les vérifier — ce qui consommait silencieusement le jeton avant le vrai clic de l'utilisateur, produisant systématiquement une erreur « lien invalide » côté utilisateur final.
+- Première connexion → redirection forcée vers `/onboarding` tant que `mediators.charter_accepted_at` et `mediators.privacy_accepted_at` sont `NULL`. Le proxy (`proxy.ts`) vérifie cet état sur chaque route protégée.
 - Changement de rôle : jamais via une simple mise à jour de table côté client. Passe exclusivement par la Server Action `set-role`, réservée à `admin`, qui appelle une fonction Postgres `SECURITY DEFINER` (voir `SECURITY.md`).
 
 ## 5. Support hors-ligne

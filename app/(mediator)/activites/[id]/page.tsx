@@ -53,11 +53,26 @@ export default async function ActiviteDetailPage({
     notFound();
   }
 
-  const { count: orientationsCount } = await supabase
-    .from("orientations")
-    .select("id", { count: "exact", head: true })
-    .eq("activity_id", id)
-    .is("archived_at", null);
+  const [{ count: orientationsCount }, { data: barrierRows }] = await Promise.all([
+    supabase
+      .from("orientations")
+      .select("id", { count: "exact", head: true })
+      .eq("activity_id", id)
+      .is("archived_at", null),
+    supabase
+      .from("activity_barriers")
+      .select("barriers(label)")
+      .eq("activity_id", id)
+      .is("archived_at", null),
+  ]);
+
+  const barrierLabels = [
+    ...new Set(
+      ((barrierRows ?? []) as unknown as { barriers: { label: string } | null }[])
+        .map((row) => row.barriers?.label)
+        .filter((label): label is string => Boolean(label)),
+    ),
+  ];
 
   const isArchived = Boolean(activity.archived_at);
   const isEditing = edit === "1" && !isArchived;
@@ -144,12 +159,31 @@ export default async function ActiviteDetailPage({
             <span className="font-medium text-text-strong">Orientations liées</span>
             <span className="text-text-strong">{orientationsCount ?? 0}</span>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4 text-sm">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="font-medium text-text-strong">Freins renseignés</span>
+            <span className="text-text-strong">{barrierLabels.length}</span>
+          </div>
+          {barrierLabels.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {barrierLabels.map((label) => (
+                <span
+                  key={label}
+                  className="rounded-full bg-card-alt px-2.5 py-1 text-xs font-medium text-text-strong"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
           {!isArchived && (
             <Link
-              href={`/orientations/nouveau?activity_id=${id}`}
-              className="mt-3 block rounded-full border border-dashed border-border bg-card-alt px-4 py-2 text-center text-sm font-bold text-bomoi-red"
+              href={`/freins/nouveau?activity_id=${id}`}
+              className="block rounded-full border border-dashed border-border bg-card-alt px-4 py-2 text-center text-sm font-bold text-bomoi-red"
             >
-              + Ajouter une orientation
+              + Ajouter un frein
             </Link>
           )}
         </div>

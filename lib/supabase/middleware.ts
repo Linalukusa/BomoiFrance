@@ -2,7 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/auth/signout", "/api/health", "/r"];
-const MEDIATOR_AREA_PATHS = ["/accueil", "/activites", "/orientations", "/freins", "/onboarding"];
+const MEDIATOR_AREA_PATHS = [
+  "/accueil",
+  "/activites",
+  "/orientations",
+  "/freins",
+  "/statistiques",
+  "/onboarding",
+];
 const COORDINATOR_AREA_PATHS = ["/dashboard", "/mediateurs"];
 
 function matchesPath(pathname: string, prefixes: string[]) {

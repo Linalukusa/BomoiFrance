@@ -36,7 +36,7 @@ Chaque étape est petite, testable indépendamment, et laisse le projet dans un 
 
 ## Étape 4 — Orientations ✅ validée
 
-- [x] Formulaire autonome « Nouvelle orientation » — `app/(mediator)/orientations/nouveau/{page,actions}.tsx`, `OrientationForm.tsx`, `RadioList.tsx` ; validation Zod (`lib/validation/orientation.ts`) alignée sur les contraintes CHECK.
+- [x] ~~Formulaire autonome « Nouvelle orientation »~~ — implémenté puis retiré à la demande de BOMOI (`PRODUCT_REQUIREMENTS.md` §0 point 6) : une orientation ne se crée plus que dans le flux de création d'activité. `RadioList.tsx` conservé (réutilisé par `PendingOrientations.tsx`), `OrientationForm.tsx` et la route `orientations/nouveau/` supprimés. Validation Zod (`lib/validation/orientation.ts`) alignée sur les contraintes CHECK, toujours utilisée par la RPC.
 - [x] Intégration dans le flux « Nouvelle activité » (compteur + bouton « + Ajouter une orientation », brouillons en mémoire jusqu'à l'enregistrement final) — `ActivityForm.tsx` + `PendingOrientations.tsx` ; envoyées avec l'activité en une seule transaction via la RPC `create_activity_with_orientations` (`supabase/migrations/0003_activity_with_orientations.sql`) pour éviter toute activité orpheline. Le détail d'activité affiche en plus le nombre réel d'orientations liées, avec un lien pour en ajouter après coup.
 - [x] Génération du lien court EFS (RPC `get_or_create_efs_link`, déjà présente dans `0001_init.sql`) + page « Mes orientations » affichant le lien à partager (`app/(mediator)/orientations/page.tsx`, `EfsLinkCard.tsx`).
 - [x] Route de redirection `app/r/[slug]/route.ts` : client `service_role`, incrément atomique de `click_count` via la RPC SECURITY DEFINER `increment_link_click` (`supabase/migrations/0004_increment_link_click.sql`), aucune IP ni autre identifiant de requête lu ou stocké. Ajoutée à `PUBLIC_PATHS` du proxy pour rester accessible sans session.
@@ -45,30 +45,30 @@ Chaque étape est petite, testable indépendamment, et laisse le projet dans un 
   - `anon` pouvait exécuter `create_activity_with_orientations` et `increment_link_click` directement via PostgREST : les `alter default privileges` de `0002_grants.sql` accordent EXECUTE à `anon`/`authenticated` sur toute fonction créée ensuite, et `revoke all ... from public` ne retire pas un droit accordé nommément — corrigé par des `revoke` explicites sur les rôles concernés (`supabase/migrations/0005_fix_function_grants.sql`).
   **Écrans à confirmer en conditions réelles** (nécessitent une session authentifiée réelle et l'URL publique de déploiement, non testables en local sans projet Supabase).
 
-## Étape 5 — Journal des freins
+## Étape 5 — Journal des freins ✅ validée
 
-- Formulaire multi-select (11 + Autre), liaison `activity_barriers`.
-- Liste des freins déjà enregistrés.
-- Badge « à compléter » sur les cartes d'activité (personnes intéressées sans orientation, ou aucun frein renseigné) + actions rapides sur l'écran de détail.
-- **Critère de fin** : un médiateur voit le badge apparaître/disparaître selon l'état réel de ses données.
+- [x] Formulaire multi-select (`ChipMultiSelect.tsx`, 11 catégories depuis `barriers`), liaison `activity_barriers` — `app/(mediator)/freins/{BarrierForm,nouveau/{page,actions}}.tsx`. Accessible en autonome avec menu déroulant d'activité (PRD §4.4, contrairement à l'orientation) ou depuis le détail d'une activité (`?activity_id=`). Insertion via `upsert(..., { onConflict: "activity_id,barrier_id", ignoreDuplicates: true })` plutôt qu'un simple insert : `(activity_id, barrier_id)` est unique, et revenir ajouter des freins sur une activité déjà partiellement renseignée ne doit pas faire échouer toute la saisie à cause des freins déjà présents.
+- [x] Liste des freins déjà enregistrés, groupée par activité — `app/(mediator)/freins/page.tsx`.
+- [x] Badge « à compléter » sur les cartes d'activité (personnes intéressées sans orientation, ou aucun frein renseigné) — `app/(mediator)/activites/page.tsx`. Actions rapides sur l'écran de détail : freins déjà liés affichés en chips + « + Ajouter un frein ».
+- **Critère de fin** : un médiateur voit le badge apparaître/disparaître selon l'état réel de ses données. **Vérifié** sur Postgres 16 local : upsert idempotent (freins déjà présents ignorés, nouveaux ajoutés), isolation RLS entre médiateurs sur `activity_barriers`.
 
-## Étape 6 — Mode hors-ligne
+## Étape 6 — Mode hors-ligne (non démarrée à la demande de BOMOI)
 
-- File IndexedDB, bandeau d'état, synchronisation automatique au retour réseau.
-- Tests manuels : coupure réseau pendant la saisie des 3 formulaires (activité, orientation, frein), vérification qu'aucune donnée n'est perdue et qu'il n'y a pas de doublon après sync.
-- **Critère de fin** : scénario « avion en mode avion pendant la saisie, retour réseau 2 minutes après » validé sur mobile réel.
+Reportée explicitement — pas de file IndexedDB/synchronisation à ce stade du pilote. Reprise possible plus tard sans dépendance bloquante sur les étapes suivantes.
 
-## Étape 7 — Tableau de bord médiateur
+## Étape 7 — Tableau de bord médiateur ✅ validée
 
-- « Mes statistiques » : cartes, freins les plus fréquents (données propres), courbe de progression mensuelle.
-- **Critère de fin** : les chiffres affichés correspondent exactement aux données saisies par ce médiateur, aucune fuite vers d'autres médiateurs (testé avec 2 comptes de test).
+- [x] « Mes statistiques » — `app/(mediator)/statistiques/page.tsx` : activités (total + 30 derniers jours), personnes sensibilisées/conversations significatives/personnes intéressées/orientations, freins les plus fréquents (`ProgressBar`), progression mensuelle 6 derniers mois (`MonthlyBarChart`, personnes sensibilisées). Pas de gamification, pas de classement.
+- **Critère de fin** : les chiffres affichés correspondent exactement aux données saisies par ce médiateur, aucune fuite vers d'autres médiateurs. **Vérifié** : toutes les requêtes filtrent `mediator_id = auth.uid()` (renforcé par RLS), testé sur Postgres 16 local avec 2 comptes médiateurs.
 
-## Étape 8 — Tableau de bord coordinateur/admin
+## Étape 8 — Tableau de bord coordinateur/admin ✅ validée
 
-- Layout desktop/tablette.
-- Section 0 (objectifs vs réalisé) → Section 4 (fiabilité), dans l'ordre du PRD, avec infobulles reprenant les définitions verrouillées.
-- Vues Postgres d'agrégation (`v_dashboard_*`) filtrant `archived_at IS NULL`.
-- **Critère de fin** : les 5 sections affichent des données cohérentes avec un jeu de données de test multi-médiateurs ; vérification visuelle que la section « Fiabilité des données » est clairement séparée des indicateurs d'impact.
+- [x] Layout desktop/tablette (`max-w-5xl`, grilles responsives) — `app/(coordinator)/dashboard/page.tsx`.
+- [x] Section 0 (objectifs vs réalisé, en premier) → Section 4 (fiabilité, bordure pointillée, visuellement séparée), dans l'ordre du PRD §4.8, infobulles (`InfoTooltip`) reprenant exactement les définitions verrouillées (`lib/config/definitions.ts`) et les objectifs PIEED (`lib/config/objectives.ts`).
+- [x] Vues Postgres d'agrégation `v_dashboard_impact`, `v_dashboard_barriers`, `v_dashboard_campus`, `v_reliability` (`supabase/migrations/0006_dashboard_views.sql`), filtrant `archived_at IS NULL` une fois pour toutes.
+- **Critère de fin** : les 5 sections affichent des données cohérentes avec un jeu de données de test multi-médiateurs ; la section « Fiabilité des données » est clairement séparée des indicateurs d'impact. **Vérifié** sur Postgres 16 local, avec une découverte importante pendant la vérification :
+  - Les vues créées avec l'option par défaut s'exécutent avec les droits de leur propriétaire (`postgres`), qui contourne RLS — n'importe quel rôle `authenticated`, y compris un simple médiateur, aurait obtenu l'agrégat de **tout le programme** en interrogeant directement la vue via l'API, ce que le PRD interdit explicitement (« un médiateur ne peut jamais voir une vue agrégée du programme », §2). Corrigé avec l'option `security_invoker = true` (Postgres 15+) : les policies RLS des tables sous-jacentes s'appliquent alors au rôle appelant réel. Testé explicitement : un médiateur interrogeant `v_dashboard_impact` directement ne voit que ses propres données agrégées (jamais celles des autres), un coordinateur voit tout le programme, `anon` n'a aucun accès (`revoke`).
+  - Comme pour les fonctions (0005), les `alter default privileges` de `0002_grants.sql` rouvraient l'accès à `anon`/`authenticated` sur ces nouvelles vues — `revoke` explicite en fin de migration.
 
 ## Étape 9 — Gestion des médiateurs et des comptes (coordinateur/admin)
 

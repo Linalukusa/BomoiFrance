@@ -91,12 +91,13 @@ export default async function AccueilPage() {
           <p className="text-sm text-text-muted">Noter un frein rencontré</p>
         </Link>
 
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-          <span className="font-bold text-text-strong">Mes statistiques</span>
-          <span className="rounded-full bg-card-alt px-2 py-1 text-xs text-text-muted">
-            Bientôt
-          </span>
-        </div>
+        <Link
+          href="/statistiques"
+          className="block rounded-xl border border-border bg-card p-4"
+        >
+          <p className="font-bold text-text-strong">Mes statistiques</p>
+          <p className="text-sm text-text-muted">Mon activité, mes freins, ma progression</p>
+        </Link>
       </div>
 
       <div>

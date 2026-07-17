@@ -41,27 +41,16 @@ export default async function OrientationsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-strong">Mes orientations</h1>
-        <Link
-          href="/orientations/nouveau"
-          className="rounded-full bg-bomoi-red px-4 py-2 text-sm font-bold text-white"
-        >
-          + Nouvelle
-        </Link>
-      </div>
+      <h1 className="text-xl font-bold text-text-strong">Mes orientations</h1>
 
       {efsLink && <EfsLinkCard link={efsLink} />}
 
       {!orientations || orientations.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-center">
-          <p className="mb-4 text-sm text-text-muted">Aucune orientation enregistrée pour l&apos;instant.</p>
-          <Link
-            href="/orientations/nouveau"
-            className="inline-block rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white"
-          >
-            Créer ma première orientation
-          </Link>
+          <p className="text-sm text-text-muted">
+            Aucune orientation enregistrée pour l&apos;instant — ajoutez-en depuis le formulaire « Nouvelle
+            activité ».
+          </p>
         </div>
       ) : (
         <ul className="space-y-3">

@@ -24,7 +24,7 @@ Aucun backend séparé. Les seules opérations privilégiées (invitation d'un m
 - **next-pwa** (ou équivalent App Router) — manifeste + service worker pour l'installabilité et le cache des assets statiques.
 - **IndexedDB (via `idb`)** — file d'attente locale des formulaires en mode hors-ligne.
 - **Vercel** — hébergement, variables d'environnement, déploiements preview par PR.
-- **Recharts** (ou équivalent léger) — graphiques simples du dashboard (courbe de progression, barres de répartition), cohérent avec le rendu sobre des maquettes.
+- **Pas de librairie de graphiques externe** — `components/dashboard/{ProgressBar,MonthlyBarChart}.tsx` : divs proportionnels simples (barre de progression, barres mensuelles), suffisants pour les graphiques sobres des maquettes sans dépendance supplémentaire.
 
 ## 3. Structure du projet
 
@@ -61,18 +61,21 @@ app/
       Stepper.tsx                  # bornes min/max — état invalide jamais atteignable depuis l'UI
       ChipSelect.tsx
     orientations/
-      page.tsx                     # liste + carte lien EFS à partager (EfsLinkCard.tsx)
-      nouveau/
-        page.tsx                   # formulaire autonome, ?activity_id= optionnel pour lier une activité existante
-        actions.ts                 # Server Action createOrientation (insert simple, RLS vérifie activity_id)
-      OrientationForm.tsx
-      RadioList.tsx                # sélection unique du statut de suivi (lignes, pas des chips)
+      page.tsx                     # liste (lecture seule) + carte lien EFS à partager (EfsLinkCard.tsx)
+      RadioList.tsx                # sélection unique du statut de suivi (lignes, pas des chips) — utilisé par PendingOrientations
       EfsLinkCard.tsx
     activites/PendingOrientations.tsx  # brouillons d'orientation en mémoire, ajoutés dans le flux "Nouvelle activité"
-    freins/page.tsx                # placeholder, à venir Étape 5
+    freins/
+      page.tsx                     # liste groupée par activité (chips de freins + note)
+      nouveau/
+        page.tsx                   # accès autonome (menu déroulant d'activité) ou ?activity_id= depuis le détail
+        actions.ts                 # Server Action createBarrierEntry (upsert multi-lignes, ignoreDuplicates)
+      BarrierForm.tsx
+      ChipMultiSelect.tsx          # sélection multiple par puces (jamais de radio, PRD §4.4)
+    statistiques/page.tsx          # "Mes statistiques" — données strictement personnelles, jamais de comparaison
   (coordinator)/
     layout.tsx
-    dashboard/page.tsx             # placeholder, sections 0-4 à venir Étape 8
+    dashboard/page.tsx             # 5 sections (Objectifs → Fiabilité), cf. §7
     mediateurs/
       nouveau/
         page.tsx                   # invitation (formulaire)
@@ -82,6 +85,12 @@ app/
   r/[slug]/route.ts                # redirection courte EFS publique, cf. §4bis
   api/
     health/route.ts
+components/
+  dashboard/
+    StatCard.tsx                   # carte chiffre + infobulle optionnelle
+    ProgressBar.tsx                # barre rouge fine sur piste grise + % (freins, campus)
+    MonthlyBarChart.tsx            # barres mensuelles, 6 derniers mois
+    InfoTooltip.tsx                # infobulle native (title), définitions verrouillées
 lib/
   supabase/
     client.ts                      # client navigateur (anon key, RLS)
@@ -91,9 +100,15 @@ lib/
   site-url.ts                      # URL publique du site pour les redirections e-mail
   config/
     options.ts                     # listes fixes non stockées en base (campus, type/durée/support d'activité)
+    definitions.ts                 # définitions verrouillées PRD §5, reprises telles quelles dans les infobulles
+    objectives.ts                  # objectifs PIEED fixes (500 sensibilisés, 60-80 nouveaux donneurs)
+  dashboard/
+    months.ts                      # helper 6 derniers mois, partagé stats médiateur + dashboard coordinateur
   validation/
     activity.ts                    # schéma Zod partagé client/serveur, mêmes règles que les CHECK de la DB
-  offline/                         # à venir Étape 6 : file IndexedDB + logique de sync
+    orientation.ts
+    barrier.ts
+  offline/                         # à venir Étape 6 (non démarrée à la demande de BOMOI) : file IndexedDB + logique de sync
 supabase/
   migrations/
     0001_init.sql
@@ -101,6 +116,7 @@ supabase/
     0003_activity_with_orientations.sql  # RPC atomique création activité + orientations en une transaction
     0004_increment_link_click.sql  # RPC SECURITY DEFINER, incrément atomique du compteur de clics EFS
     0005_fix_function_grants.sql   # révoque anon/authenticated de deux fonctions que 0002 leur avait rouvertes par erreur
+    0006_dashboard_views.sql       # v_dashboard_impact/barriers/campus, v_reliability — security_invoker + revoke anon
 ```
 
 ## 3bis. Listes fixes côté configuration (pas de table dédiée)
@@ -145,11 +161,13 @@ Objectif : un médiateur sans réseau (sous-sol, hall universitaire) peut rempli
 
 ## 7. Dashboard coordinateur/admin — calculs
 
-Toutes les requêtes d'agrégation filtrent systématiquement `archived_at IS NULL`. Recommandation : exposer des **vues Postgres** dédiées (`v_dashboard_impact`, `v_dashboard_barriers`, `v_dashboard_campus`, `v_reliability`) qui encapsulent ce filtre une fois pour toutes plutôt que de le répéter dans chaque requête applicative — réduit le risque d'oubli et simplifie l'audit.
+Toutes les requêtes d'agrégation filtrent systématiquement `archived_at IS NULL`. Exposé via 4 **vues Postgres** dédiées (`v_dashboard_impact`, `v_dashboard_barriers`, `v_dashboard_campus`, `v_reliability`, `supabase/migrations/0006_dashboard_views.sql`) qui encapsulent ce filtre une fois pour toutes plutôt que de le répéter dans chaque requête applicative — réduit le risque d'oubli et simplifie l'audit.
 
 - « Freins les plus fréquents » : `COUNT(*)` sur `activity_barriers` non archivées, groupé par `barrier_id`, jamais `COUNT(DISTINCT activity_id)` — cohérent avec la règle de comptage par occurrence explicitée dans le PRD.
 - « Répartition par campus » : `COUNT(*)` sur `activities` non archivées groupé par `campus`.
-- Ratio orientations/intéressés, taux de rétention : calculés côté application à partir des agrégats bruts renvoyés par les vues (pas de division en SQL pour éviter les erreurs de division par zéro non gérées).
+- « Médiateurs formés » : `status IN ('forme', 'actif')` (un médiateur actif reste compté comme formé, il a nécessairement franchi cette étape) ; « actifs » : `status = 'actif'` strictement.
+- Ratio orientations/intéressés, taux de rétention (actifs / recrutés) : calculés côté application à partir des agrégats bruts renvoyés par les vues (pas de division en SQL pour éviter les erreurs de division par zéro non gérées).
+- **`security_invoker = true` obligatoire sur les 4 vues** : par défaut, une vue Postgres s'exécute avec les droits de son propriétaire (`postgres`, qui contourne RLS comme tout superutilisateur) — n'importe quel rôle `authenticated`, y compris un simple médiateur, obtiendrait alors l'agrégat de **tout le programme** en interrogeant directement la vue via l'API REST, ce que le PRD interdit explicitement (§2 : un médiateur « ne peut jamais voir une vue agrégée du programme »). Avec `security_invoker`, les policies RLS des tables sous-jacentes s'appliquent au rôle appelant réel : un médiateur qui interrogerait la vue directement ne verrait que ses propres lignes agrégées, jamais celles des autres. La page `/dashboard` reste de toute façon inaccessible à un médiateur seul via le proxy — cette protection est une deuxième ligne de défense en cas d'appel direct à l'API, sur le même principe que la correction de la migration 0005 pour les fonctions (les `alter default privileges` de `0002_grants.sql` rouvrent l'accès à `anon`/`authenticated` sur toute relation créée ensuite, y compris les vues — `revoke` explicite requis à chaque fois).
 
 ## 8. PWA
 

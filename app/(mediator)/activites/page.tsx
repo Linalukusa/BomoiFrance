@@ -43,6 +43,19 @@ export default async function ActivitesPage({
 
   const { data: activities } = await query;
 
+  const [{ data: orientedRows }, { data: barrieredRows }] = await Promise.all([
+    supabase
+      .from("orientations")
+      .select("activity_id")
+      .eq("mediator_id", user.id)
+      .is("archived_at", null)
+      .not("activity_id", "is", null),
+    supabase.from("activity_barriers").select("activity_id").eq("mediator_id", user.id).is("archived_at", null),
+  ]);
+
+  const orientedActivityIds = new Set((orientedRows ?? []).map((row) => row.activity_id));
+  const barrieredActivityIds = new Set((barrieredRows ?? []).map((row) => row.activity_id));
+
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 py-6">
       <div className="flex items-center justify-between">
@@ -104,35 +117,46 @@ export default async function ActivitesPage({
         </div>
       ) : (
         <ul className="space-y-3">
-          {activities.map((activity) => (
-            <li key={activity.id}>
-              <Link
-                href={`/activites/${activity.id}`}
-                className="block rounded-xl border border-border bg-card p-4"
-              >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate font-bold text-text-strong">
-                    {ACTIVITY_TYPE_LABELS[activity.activity_type] ?? activity.activity_type}
-                  </span>
-                  <span className="shrink-0 text-xs text-text-muted">
-                    {formatDate(activity.activity_date)}
-                  </span>
-                </div>
-                <p className="mb-2 truncate text-sm text-text-secondary">{activity.campus}</p>
-                <div className="flex gap-2 text-xs text-text-muted">
-                  <span className="rounded-full bg-card-alt px-2 py-1">
-                    {activity.people_reached} pers. atteintes
-                  </span>
-                  {activity.interested_people > 0 && (
-                    <span className="rounded-full bg-card-alt px-2 py-1">
-                      {activity.interested_people} intéressée
-                      {activity.interested_people > 1 ? "s" : ""}
+          {activities.map((activity) => {
+            const needsCompletion =
+              (activity.interested_people > 0 && !orientedActivityIds.has(activity.id)) ||
+              !barrieredActivityIds.has(activity.id);
+
+            return (
+              <li key={activity.id}>
+                <Link
+                  href={`/activites/${activity.id}`}
+                  className="block rounded-xl border border-border bg-card p-4"
+                >
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="min-w-0 flex-1 truncate font-bold text-text-strong">
+                      {ACTIVITY_TYPE_LABELS[activity.activity_type] ?? activity.activity_type}
                     </span>
-                  )}
-                </div>
-              </Link>
-            </li>
-          ))}
+                    <span className="shrink-0 text-xs text-text-muted">
+                      {formatDate(activity.activity_date)}
+                    </span>
+                  </div>
+                  <p className="mb-2 truncate text-sm text-text-secondary">{activity.campus}</p>
+                  <div className="flex flex-wrap gap-2 text-xs text-text-muted">
+                    <span className="rounded-full bg-card-alt px-2 py-1">
+                      {activity.people_reached} pers. atteintes
+                    </span>
+                    {activity.interested_people > 0 && (
+                      <span className="rounded-full bg-card-alt px-2 py-1">
+                        {activity.interested_people} intéressée
+                        {activity.interested_people > 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {needsCompletion && (
+                      <span className="rounded-full border border-dashed border-border px-2 py-1 text-text-muted">
+                        À compléter
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

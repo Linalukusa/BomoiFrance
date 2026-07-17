@@ -11,6 +11,7 @@ Les points ouverts soumis à BOMOI ont été tranchés comme suit :
 3. Champ « individuel ou groupe » sur l'activité : **supprimé**, redondant avec le type d'activité qui porte déjà cette information.
 4. Champ « support utilisé » : **conservé**, avec une liste de suggestions verrouillée : flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre.
 5. « Collecte concernée » sur l'orientation : **nullable**, référence `aggregate_collection_results` — confirmé tel quel.
+6. Formulaire « Nouvelle orientation » en autonome (§4.3, onglet dédié) : **retiré** après implémentation — une orientation ne se crée plus qu'intégrée au flux « Nouvelle activité » (§4.2). L'onglet « Orientation » de la navigation basse reste une liste de consultation (+ lien EFS à partager), pas un point d'entrée de création.
 
 ## 1. Contexte et objectifs
 
@@ -105,11 +106,11 @@ Une seule page scrollable (pas de wizard). Champs :
 
 **Orientations intégrées au formulaire** : compteur « X orientation(s) enregistrée(s) pour cette activité » + bouton « + Ajouter une orientation » ouvrant le sous-formulaire décrit en 4.3, avant l'enregistrement final. **Aucun blocage** : l'activité s'enregistre même sans orientation ni frein renseigné, sans confirmation forcée.
 
-**Sur la liste des activités** : badge discret non bloquant « à compléter » si personnes intéressées > 0 sans orientation liée, ou si aucun frein n'est renseigné. Sur l'écran de détail : actions rapides « + Ajouter une orientation » / « + Ajouter un frein ».
+**Sur la liste des activités** : badge discret non bloquant « à compléter » si personnes intéressées > 0 sans orientation liée, ou si aucun frein n'est renseigné. Sur l'écran de détail : action rapide « + Ajouter un frein » (une orientation ne peut plus être ajoutée après coup, voir §0 point 6 — uniquement au moment de la création de l'activité).
 
 ### 4.3 Formulaire « Nouvelle orientation »
 
-Accessible en autonome (onglet dédié) et intégré au formulaire d'activité. Strictement anonyme.
+Intégré uniquement au formulaire d'activité (§4.2) — pas d'accès autonome (voir §0, point 6). Strictement anonyme.
 
 | Champ | Type |
 |---|---|

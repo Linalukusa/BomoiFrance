@@ -15,13 +15,16 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function confirmSignIn(formData: FormData) {
   const token_hash = formData.get("token_hash");
-  const type = formData.get("type") as EmailOtpType | null;
+  const rawType = formData.get("type");
+  // "email" est un type générique accepté par verifyOtp pour les jetons
+  // envoyés par e-mail — utilisé en repli quand {{ .Type }} est vide (flux PKCE).
+  const type = (typeof rawType === "string" && rawType ? rawType : "email") as EmailOtpType;
   const code = formData.get("code");
   const next = String(formData.get("next") ?? "/");
 
   const supabase = await createClient();
 
-  if (typeof token_hash === "string" && token_hash && type) {
+  if (typeof token_hash === "string" && token_hash) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash });
     if (!error) {
       redirect(next);

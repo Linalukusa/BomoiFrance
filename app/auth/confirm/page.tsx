@@ -11,7 +11,11 @@ export default async function ConfirmPage({
   }>;
 }) {
   const { token_hash, type, code, next } = await searchParams;
-  const hasToken = Boolean((token_hash && type) || code);
+  // {{ .Type }} est vide dans les e-mails Supabase quand le projet est en
+  // flux PKCE (reconnaissable au préfixe "pkce_" sur token_hash) — ce n'est
+  // pas une erreur de template, juste une variable non renseignée dans ce
+  // mode. La Server Action retombe alors sur un type générique.
+  const hasToken = Boolean(token_hash || code);
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-6 bg-page px-6 py-16">

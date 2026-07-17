@@ -43,9 +43,13 @@ export async function inviteMediator(formData: FormData) {
   const admin = createAdminClient();
   const siteUrl = await getSiteUrl();
 
+  // redirectTo n'est plus le mécanisme d'authentification (voir LoginForm.tsx :
+  // connexion par code à 6 chiffres, pas par lien) — conservé uniquement comme
+  // destination de repli si le modèle d'e-mail « Invite user » contient encore
+  // un lien.
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
     email,
-    { redirectTo: `${siteUrl}/auth/confirm` },
+    { redirectTo: siteUrl },
   );
 
   if (inviteError || !invited?.user) {

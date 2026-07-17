@@ -9,8 +9,11 @@ export function translateAuthError(message: string): string {
   if (lower.includes("security purposes") || lower.includes("rate limit")) {
     const seconds = message.match(/(\d+) seconds?/)?.[1];
     return seconds
-      ? `Pour des raisons de sécurité, merci de patienter ${seconds} secondes avant de redemander un lien.`
-      : "Pour des raisons de sécurité, merci de patienter quelques instants avant de redemander un lien.";
+      ? `Pour des raisons de sécurité, merci de patienter ${seconds} secondes avant de redemander un code.`
+      : "Pour des raisons de sécurité, merci de patienter quelques instants avant de redemander un code.";
+  }
+  if (lower.includes("token") && (lower.includes("expired") || lower.includes("invalid"))) {
+    return "Ce code n'est plus valide ou a expiré. Redemandez-en un nouveau.";
   }
   if (lower.includes("invalid") && lower.includes("email")) {
     return "Adresse e-mail invalide.";
@@ -23,6 +26,5 @@ export function translateAuthError(message: string): string {
 }
 
 export const AUTH_QUERY_ERROR_MESSAGES: Record<string, string> = {
-  lien_invalide: "Ce lien de connexion n'est plus valide. Merci d'en redemander un.",
   profil_introuvable: "Aucun profil n'est associé à ce compte. Contactez votre coordinateur.",
 };

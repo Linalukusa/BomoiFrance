@@ -24,16 +24,24 @@ npm run dev
 
 ## Authentification (Étape 2)
 
-Pas d'auto-inscription : les comptes sont créés par invitation (admin ou coordinateur), connexion par lien magique envoyé par e-mail. Deux réglages Supabase à faire une seule fois, dans le dashboard :
+Pas d'auto-inscription : les comptes sont créés par invitation (admin ou coordinateur). Connexion par **code à 6 chiffres saisi manuellement** — pas par lien cliquable.
 
-1. **Authentication → URL Configuration** : renseigner le `Site URL` (ex. `https://bomoi-mediation-hub.vercel.app`) et ajouter `https://bomoi-mediation-hub.vercel.app/auth/confirm` (et l'équivalent `http://localhost:3000/auth/confirm` pour le local) dans `Redirect URLs`. Sans ça, Supabase refuse les liens de connexion/invitation.
-2. **Authentication → Email Templates → Magic Link** : **le template par défaut ne fonctionne pas avec cette architecture** et doit être modifié. Il utilise `{{ .ConfirmationURL }}`, qui pointe vers le endpoint hébergé par Supabase (`<projet>.supabase.co/auth/v1/verify`) ; celui-ci valide le lien puis redirige le navigateur avec les jetons dans un **fragment d'URL** (`#access_token=...`), que notre route serveur `/auth/confirm` ne peut pas lire (les fragments ne sont jamais envoyés au serveur). Résultat : la connexion échoue silencieusement et renvoie vers `/login`.
+### Pourquoi un code plutôt qu'un lien
 
-   Remplacer, dans le corps du template, le lien `{{ .ConfirmationURL }}` par :
-   ```
-   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}&next=/
-   ```
-   Faire la même modification sur le template **Invite user** (utilisé pour les invitations de médiateurs). Les autres templates (Recovery, Email Change…) ne sont pas utilisés en V1 et peuvent rester tels quels.
+Première implémentation : lien magique cliquable. Écarté en pratique — de nombreux clients e-mail et antivirus (aperçus de lien Gmail, Safe Links Outlook, scanners de sécurité) **suivent automatiquement les liens contenus dans un e-mail pour les vérifier**, avant même que la personne ne clique. Comme les jetons de connexion Supabase sont à usage unique, ce pré-scan les consomme silencieusement — la personne reçoit alors systématiquement une erreur « lien expiré » en cliquant, quelques secondes après avoir reçu l'e-mail. Un code recopié manuellement ne peut pas être consommé à la place de l'utilisateur : c'est la seule solution robuste face à un pré-scan qu'on ne contrôle pas.
+
+Flux : `supabase.auth.signInWithOtp({ email })` envoie le code, `supabase.auth.verifyOtp({ email, token, type: "email" })` le vérifie une fois saisi dans `/login`.
+
+### Réglage Supabase à faire une seule fois
+
+**Authentication → Email Templates**, sur les templates **Magic Link** et **Invite user** : le corps de l'e-mail doit afficher clairement `{{ .Token }}` (le code à 6 chiffres), par exemple :
+```html
+<h2>{{ .Token }}</h2>
+<p>Saisissez ce code sur la page de connexion de BOMOI Mediation Hub.</p>
+```
+Le lien `{{ .ConfirmationURL }}` par défaut peut rester dans le template (il n'est plus utilisé par l'application, `/auth/confirm` n'existe plus) ou être retiré, au choix — sans effet fonctionnel.
+
+Aucun réglage de `Redirect URLs`/`Site URL` n'est requis pour ce flux (nécessaire uniquement pour les liens cliquables, qu'on n'utilise plus).
 
 ### Créer le premier compte admin (bootstrap, une seule fois)
 
@@ -45,7 +53,7 @@ L'application ne permet pas de se nommer soi-même admin : la seule voie légiti
    insert into public.profiles (id, role) values ('<uuid-de-l-utilisateur>', 'admin');
    ```
    (Pas de ligne `mediators` à créer pour un compte admin/coordinateur — cette table ne concerne que le rôle `mediator`.)
-3. La personne admin clique le lien reçu par e-mail, arrive directement sur `/dashboard` (pas d'onboarding pour ce rôle), et peut ensuite inviter les médiateurs depuis « + Inviter un médiateur ».
+3. La personne admin va sur `/login`, saisit son e-mail, reçoit un code à 6 chiffres et le saisit. Elle arrive directement sur `/dashboard` (pas d'onboarding pour ce rôle), et peut ensuite inviter les médiateurs depuis « + Inviter un médiateur ».
 
 ## Scripts
 

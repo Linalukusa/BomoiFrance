@@ -35,15 +35,14 @@ proxy.ts                           # ex-middleware.ts (renommage Next.js 16) : s
 app/
   page.tsx                         # filet de sécurité, redirige toujours vers /login
   (auth)/
-    login/page.tsx                 # saisie e-mail, envoi du lien magique
+    login/
+      page.tsx                     # wrapper serveur (lit ?error=)
+      LoginForm.tsx                 # 2 étapes client : e-mail → code à 6 chiffres
     onboarding/
       page.tsx                     # charte + RGPD, bloque tant que non accepté
       OnboardingForm.tsx
       actions.ts                   # Server Action, valide et horodate côté serveur
   auth/
-    confirm/
-      page.tsx                     # page d'atterrissage des liens e-mail — n'agit jamais tout seul
-      actions.ts                   # verifyOtp/exchangeCodeForSession, déclenché uniquement par le clic (voir §4)
     signout/route.ts
   (mediator)/
     layout.tsx
@@ -85,9 +84,10 @@ Deux listes sont volontairement gérées comme des constantes applicatives (`lib
 
 ## 4. Authentification et gestion des comptes
 
-- Pas d'auto-inscription. Un admin ou coordinateur invite un médiateur (e-mail) depuis `mediateurs/page.tsx` → Server Action → `supabase.auth.admin.inviteUserByEmail()` (clé service_role, côté serveur) → création simultanée des lignes `profiles` (role=`mediator`) et `mediators` dans la même transaction applicative.
-- Connexion : lien magique envoyé par Supabase Auth. Pas de mot de passe à gérer, pas de flux d'inscription libre.
-- Le lien reçu par e-mail pointe vers `/auth/confirm?token_hash=...&type=...`, une **page** qui n'effectue aucune action automatique — elle affiche juste un bouton « Se connecter ». La consommation réelle du jeton (`verifyOtp`) n'a lieu que sur clic explicite, via une Server Action (`actions.ts`, donc une requête POST). Nécessaire car les jetons sont à usage unique et de nombreux clients e-mail (aperçus de lien Gmail, Safe Links Outlook, scanners de sécurité) suivent automatiquement les liens GET des e-mails pour les vérifier — ce qui consommait silencieusement le jeton avant le vrai clic de l'utilisateur, produisant systématiquement une erreur « lien invalide » côté utilisateur final.
+- Pas d'auto-inscription. Un admin ou coordinateur invite un médiateur (e-mail) depuis `mediateurs/nouveau` → Server Action → `supabase.auth.admin.inviteUserByEmail()` (clé service_role, côté serveur) → création simultanée des lignes `profiles` (role=`mediator`) et `mediators` dans la même transaction applicative.
+- Connexion : **code à 6 chiffres saisi manuellement**, pas de lien cliquable. `LoginForm.tsx` (client) appelle `signInWithOtp({ email, options: { shouldCreateUser: false } })`, affiche un champ de saisie, puis `verifyOtp({ email, token, type: "email" })`. Un rechargement complet (`window.location.assign`) suit le succès pour que le proxy relise la session fraîchement établie.
+  - **Pourquoi pas de lien** : première implémentation testée en conditions réelles avec un lien cliquable (`token_hash`/`verifyOtp` côté serveur). Échec systématique : de nombreux clients e-mail et antivirus (aperçus Gmail, Safe Links Outlook, scanners de sécurité) suivent automatiquement les liens contenus dans un e-mail pour les vérifier, avant le vrai clic de l'utilisateur. Les jetons Supabase étant à usage unique, ce pré-scan les consommait silencieusement — confirmé par les erreurs Supabase elles-mêmes (« otp expired », « One-time token not found ») quelques secondes après réception de l'e-mail, alors même qu'un palier intermédiaire avait déjà été ajouté pour ne consommer le jeton que sur clic explicite (POST). Un code recopié manuellement par l'utilisateur ne peut pas être consommé à sa place.
+  - Modèles d'e-mail Supabase (Magic Link, Invite user) : doivent afficher `{{ .Token }}` en clair dans le corps (voir README.md « Authentification »).
 - Première connexion → redirection forcée vers `/onboarding` tant que `mediators.charter_accepted_at` et `mediators.privacy_accepted_at` sont `NULL`. Le proxy (`proxy.ts`) vérifie cet état sur chaque route protégée.
 - Changement de rôle : jamais via une simple mise à jour de table côté client. Passe exclusivement par la Server Action `set-role`, réservée à `admin`, qui appelle une fonction Postgres `SECURITY DEFINER` (voir `SECURITY.md`).
 

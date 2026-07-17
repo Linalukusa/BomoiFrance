@@ -17,13 +17,12 @@ Chaque étape est petite, testable indépendamment, et laisse le projet dans un 
 
 ## Étape 2 — Authentification et onboarding
 
-- [x] Écran de connexion (lien magique) — `app/(auth)/login`.
-- [x] Point d'entrée unique pour les liens e-mail (connexion et invitation) — `app/auth/confirm/route.ts` (`verifyOtp`).
+- [x] Écran de connexion — `app/(auth)/login` (code à 6 chiffres saisi manuellement, pas de lien cliquable — un lien magique a été testé en premier puis abandonné, systématiquement consommé par le pré-scan automatique des liens de certaines messageries/antivirus avant le clic réel de l'utilisateur).
 - [x] Flux d'invitation admin/coordinateur → création `profiles`/`mediators` — `app/(coordinator)/mediateurs/nouveau` (Server Action, `service_role`).
 - [x] Écran d'onboarding (charte + RGPD, deux cases horodatées) — `app/(auth)/onboarding`.
 - [x] Proxy (`proxy.ts`, ex-middleware) : session obligatoire, redirection `/onboarding` tant que non complété, séparation zones médiateur/coordinateur.
 - [x] Écrans d'atterrissage minimaux — `app/(mediator)/accueil`, `app/(coordinator)/dashboard`.
-- **Critère de fin** : un admin peut inviter un médiateur de test, qui se connecte, passe l'onboarding, arrive sur un écran d'accueil vide. **Code prêt, à vérifier en conditions réelles** — voir la checklist de configuration Supabase/Vercel avant test dans le message de livraison.
+- **Critère de fin** : un admin peut inviter un médiateur de test, qui se connecte, passe l'onboarding, arrive sur un écran d'accueil vide. **À revérifier en conditions réelles avec le flux par code** (le flux par lien avait été validé jusqu'à l'écran de clic puis s'est révélé peu fiable — voir README.md « Authentification »).
 
 ## Étape 3 — Formulaire « Nouvelle activité » (sans orientation intégrée)
 

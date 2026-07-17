@@ -53,6 +53,12 @@ export default async function ActiviteDetailPage({
     notFound();
   }
 
+  const { count: orientationsCount } = await supabase
+    .from("orientations")
+    .select("id", { count: "exact", head: true })
+    .eq("activity_id", id)
+    .is("archived_at", null);
+
   const isArchived = Boolean(activity.archived_at);
   const isEditing = edit === "1" && !isArchived;
 
@@ -132,6 +138,21 @@ export default async function ActiviteDetailPage({
           )}
           {activity.note && <Row label="Note" value={activity.note} />}
         </dl>
+
+        <div className="rounded-xl border border-border bg-card p-4 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-text-strong">Orientations liées</span>
+            <span className="text-text-strong">{orientationsCount ?? 0}</span>
+          </div>
+          {!isArchived && (
+            <Link
+              href={`/orientations/nouveau?activity_id=${id}`}
+              className="mt-3 block rounded-full border border-dashed border-border bg-card-alt px-4 py-2 text-center text-sm font-bold text-bomoi-red"
+            >
+              + Ajouter une orientation
+            </Link>
+          )}
+        </div>
 
         {!isArchived && (
           <div className="flex gap-3">

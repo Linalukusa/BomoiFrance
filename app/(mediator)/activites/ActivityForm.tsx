@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Stepper } from "./Stepper";
 import { ChipSelect } from "./ChipSelect";
+import { PendingOrientations, type PendingOrientation } from "./PendingOrientations";
 import {
   ACTIVITY_TYPE_OPTIONS,
   CAMPUS_OPTIONS,
@@ -34,11 +35,15 @@ export function ActivityForm({
   action,
   initialValues,
   submitLabel = "Enregistrer l'activité",
+  collections = [],
 }: {
   action: (formData: FormData) => void | Promise<void>;
   initialValues?: Partial<ActivityFormInitialValues>;
   submitLabel?: string;
+  collections?: readonly { id: string; label: string }[];
 }) {
+  const isCreateMode = !initialValues;
+  const [pendingOrientations, setPendingOrientations] = useState<PendingOrientation[]>([]);
   const [activityDate, setActivityDate] = useState(initialValues?.activity_date ?? todayISODate());
   const [campus, setCampus] = useState(initialValues?.campus ?? CAMPUS_OPTIONS[0]);
   const [activityType, setActivityType] = useState<string | null>(
@@ -217,6 +222,18 @@ export function ActivityForm({
           className="w-full rounded-lg border border-border bg-card px-4 py-3 text-text-strong placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-bomoi-red"
         />
       </div>
+
+      {isCreateMode && (
+        <>
+          <hr className="border-border-subtle" />
+          <PendingOrientations
+            collections={collections}
+            value={pendingOrientations}
+            onChange={setPendingOrientations}
+          />
+          <input type="hidden" name="orientations" value={JSON.stringify(pendingOrientations)} />
+        </>
+      )}
 
       {error && <p className="text-sm text-bomoi-red">{error}</p>}
 

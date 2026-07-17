@@ -34,13 +34,16 @@ Chaque étape est petite, testable indépendamment, et laisse le projet dans un 
 - [x] Accueil médiateur enrichi avec activité récente réelle, reprenant l'état vide du mockup.
 - **Critère de fin** : un médiateur de test crée, consulte, modifie et archive une activité. **Vérifié** : schéma de données/RLS/contraintes CHECK testés de bout en bout sur Postgres 16 local (isolation entre médiateurs, blocage des valeurs invalides, archivage vs suppression définitive, journal d'audit) ; formulaire vérifié visuellement et interactivement (clamp des steppers) via Playwright. **Écrans de liste/détail à confirmer en conditions réelles** (nécessitent une session authentifiée réelle, non testables en local sans projet Supabase).
 
-## Étape 4 — Orientations
+## Étape 4 — Orientations ✅ validée
 
-- Formulaire autonome « Nouvelle orientation ».
-- Intégration dans le flux « Nouvelle activité » (compteur + bouton « + Ajouter une orientation »).
-- Génération du lien court EFS (RPC) + page de profil/activité affichant le lien à partager.
-- Route de redirection `/r/[slug]` avec incrément de compteur, testée sans authentification.
-- **Critère de fin** : une orientation liée à une activité est visible dans le compteur ; un clic sur le lien court redirige et incrémente `click_count` sans écrire d'IP en base.
+- [x] Formulaire autonome « Nouvelle orientation » — `app/(mediator)/orientations/nouveau/{page,actions}.tsx`, `OrientationForm.tsx`, `RadioList.tsx` ; validation Zod (`lib/validation/orientation.ts`) alignée sur les contraintes CHECK.
+- [x] Intégration dans le flux « Nouvelle activité » (compteur + bouton « + Ajouter une orientation », brouillons en mémoire jusqu'à l'enregistrement final) — `ActivityForm.tsx` + `PendingOrientations.tsx` ; envoyées avec l'activité en une seule transaction via la RPC `create_activity_with_orientations` (`supabase/migrations/0003_activity_with_orientations.sql`) pour éviter toute activité orpheline. Le détail d'activité affiche en plus le nombre réel d'orientations liées, avec un lien pour en ajouter après coup.
+- [x] Génération du lien court EFS (RPC `get_or_create_efs_link`, déjà présente dans `0001_init.sql`) + page « Mes orientations » affichant le lien à partager (`app/(mediator)/orientations/page.tsx`, `EfsLinkCard.tsx`).
+- [x] Route de redirection `app/r/[slug]/route.ts` : client `service_role`, incrément atomique de `click_count` via la RPC SECURITY DEFINER `increment_link_click` (`supabase/migrations/0004_increment_link_click.sql`), aucune IP ni autre identifiant de requête lu ou stocké. Ajoutée à `PUBLIC_PATHS` du proxy pour rester accessible sans session.
+- **Critère de fin** : une orientation liée à une activité est visible dans le compteur ; un clic sur le lien court redirige et incrémente `click_count` sans écrire d'IP en base. **Vérifié** : RPC/RLS/grants testés de bout en bout sur Postgres 16 local (transaction atomique avec rollback sur statut invalide, isolation entre médiateurs sur les orientations, lecture libre mais écriture admin-only sur les collectes, idempotence du lien EFS général vs lien par activité, aucune colonne d'IP dans le schéma). Deux écarts trouvés et corrigés pendant cette vérification :
+  - `/r/[slug]` était absent de `PUBLIC_PATHS` du proxy : un visiteur anonyme cliquant le lien EFS aurait été redirigé vers `/login` au lieu du site EFS.
+  - `anon` pouvait exécuter `create_activity_with_orientations` et `increment_link_click` directement via PostgREST : les `alter default privileges` de `0002_grants.sql` accordent EXECUTE à `anon`/`authenticated` sur toute fonction créée ensuite, et `revoke all ... from public` ne retire pas un droit accordé nommément — corrigé par des `revoke` explicites sur les rôles concernés (`supabase/migrations/0005_fix_function_grants.sql`).
+  **Écrans à confirmer en conditions réelles** (nécessitent une session authentifiée réelle et l'URL publique de déploiement, non testables en local sans projet Supabase).
 
 ## Étape 5 — Journal des freins
 

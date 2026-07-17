@@ -60,7 +60,15 @@ app/
       ActivityForm.tsx             # partagé création/édition
       Stepper.tsx                  # bornes min/max — état invalide jamais atteignable depuis l'UI
       ChipSelect.tsx
-    orientations/page.tsx          # placeholder, à venir Étape 4
+    orientations/
+      page.tsx                     # liste + carte lien EFS à partager (EfsLinkCard.tsx)
+      nouveau/
+        page.tsx                   # formulaire autonome, ?activity_id= optionnel pour lier une activité existante
+        actions.ts                 # Server Action createOrientation (insert simple, RLS vérifie activity_id)
+      OrientationForm.tsx
+      RadioList.tsx                # sélection unique du statut de suivi (lignes, pas des chips)
+      EfsLinkCard.tsx
+    activites/PendingOrientations.tsx  # brouillons d'orientation en mémoire, ajoutés dans le flux "Nouvelle activité"
     freins/page.tsx                # placeholder, à venir Étape 5
   (coordinator)/
     layout.tsx
@@ -71,7 +79,7 @@ app/
         actions.ts                 # Server Action service_role
       page.tsx                     # à venir Étape 9 : liste + fiche médiateur
   SignOutButton.tsx
-  r/[slug]/route.ts                # à venir Étape 4 : redirection courte EFS
+  r/[slug]/route.ts                # redirection courte EFS publique, cf. §4bis
   api/
     health/route.ts
 lib/
@@ -90,6 +98,9 @@ supabase/
   migrations/
     0001_init.sql
     0002_grants.sql                # restaure les privilèges Postgres perdus lors d'un incident de récupération
+    0003_activity_with_orientations.sql  # RPC atomique création activité + orientations en une transaction
+    0004_increment_link_click.sql  # RPC SECURITY DEFINER, incrément atomique du compteur de clics EFS
+    0005_fix_function_grants.sql   # révoque anon/authenticated de deux fonctions que 0002 leur avait rouvertes par erreur
 ```
 
 ## 3bis. Listes fixes côté configuration (pas de table dédiée)
@@ -126,13 +137,11 @@ Objectif : un médiateur sans réseau (sous-sol, hall universitaire) peut rempli
 ## 6. Module de tracking EFS (liens courts)
 
 - Table unique `link_clicks` : un enregistrement par lien généré (par médiateur, éventuellement par activité), avec un compteur `click_count` et `last_clicked_at`.
-- Génération du lien : RPC Postgres `SECURITY DEFINER` `get_or_create_efs_link(p_activity_id uuid default null)`, appelable par le médiateur authentifié uniquement pour lui-même (vérifie `auth.uid()` en interne). Génère un `slug` aléatoire (ex. 8 caractères base62) si aucun lien n'existe déjà pour ce couple médiateur/activité.
-- Redirection : `app/r/[slug]/route.ts`, Route Handler public (pas d'auth requise — ce sont les personnes sensibilisées, non authentifiées, qui cliquent). Utilise le client `service_role` côté serveur pour :
-  1. chercher `slug` dans `link_clicks` ;
-  2. si trouvé, incrémenter `click_count` (requête atomique `UPDATE ... SET click_count = click_count + 1`) ;
-  3. répondre `302` vers l'URL officielle EFS configurée (variable d'environnement `EFS_TARGET_URL`) ;
-  4. si non trouvé, `302` vers l'URL EFS générique (jamais d'erreur visible pour un visiteur externe).
-- **Aucune IP stockée** : un middleware Edge applique un rate-limit simple en mémoire (fenêtre glissante courte, ex. Vercel Edge Config ou KV à courte durée de vie) pour limiter les clics automatisés, sans persister l'IP en base. Passé la fenêtre anti-bot, l'IP n'existe plus nulle part dans le système.
+- Génération du lien : RPC Postgres `SECURITY DEFINER` `get_or_create_efs_link(p_activity_id uuid default null)`, appelable par le médiateur authentifié uniquement pour lui-même (vérifie `auth.uid()` en interne). Génère un `slug` aléatoire (8 caractères) si aucun lien n'existe déjà pour ce couple médiateur/activité — idempotent, rappelable sans jamais créer de doublon. Affiché avec un bouton « Copier » sur `app/(mediator)/orientations/page.tsx` (`EfsLinkCard.tsx`) : un lien général (sans activité) toujours visible en haut de la liste, plus un lien par activité disponible depuis le détail de chaque activité.
+- Redirection : `app/r/[slug]/route.ts`, Route Handler public (pas d'auth requise — ce sont les personnes sensibilisées, non authentifiées, qui cliquent). Ajouté à `PUBLIC_PATHS` dans `lib/supabase/middleware.ts` pour court-circuiter la vérification de session avant même la création du client Supabase — sans cette entrée, un visiteur anonyme cliquant le lien serait redirigé vers `/login` au lieu du site EFS (repéré et corrigé pendant la vérification de l'Étape 4). Utilise le client `service_role` côté serveur pour :
+  1. incrémenter `click_count` de façon atomique via la RPC `SECURITY DEFINER` `increment_link_click(p_slug text)` (`UPDATE ... SET click_count = click_count + 1 WHERE slug = ... RETURNING true` en une seule requête — pas de lire-puis-écrire, pour ne perdre aucun clic en cas de clics concurrents) ; réservée au rôle `service_role` (`GRANT EXECUTE` explicite, `REVOKE` de `anon`/`authenticated` — voir migration 0005 ci-dessous) ;
+  2. répondre `302` vers l'URL officielle EFS configurée (variable d'environnement `EFS_TARGET_URL`), que le `slug` ait été trouvé ou non — jamais d'erreur visible pour un visiteur externe, jamais d'indice sur l'existence ou non d'un lien.
+- **Aucune IP stockée** : la route ne lit ni ne journalise aucun en-tête ou propriété de la requête (pas d'IP, pas de user-agent) — seul le compteur agrégé est incrémenté. Rate-limiting anti-bot par IP (fenêtre glissante en mémoire, ex. Vercel Edge Config/KV) documenté comme amélioration possible mais non implémenté en V1 : le risque accepté est un compteur légèrement gonflé par des clics automatisés, jamais une IP stockée.
 
 ## 7. Dashboard coordinateur/admin — calculs
 

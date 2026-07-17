@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth/signout", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/auth/signout", "/api/health", "/r"];
 const MEDIATOR_AREA_PATHS = ["/accueil", "/activites", "/orientations", "/freins", "/onboarding"];
 const COORDINATOR_AREA_PATHS = ["/dashboard", "/mediateurs"];
 

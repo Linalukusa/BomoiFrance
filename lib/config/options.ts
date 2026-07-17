@@ -48,3 +48,23 @@ export const SUPPORT_USED_OPTIONS = [
   "Aucun",
   "Autre",
 ] as const;
+
+// Doit rester synchronisé avec la contrainte CHECK sur orientations.channel.
+export const ORIENTATION_CHANNEL_OPTIONS = [
+  { value: "en_personne", label: "En personne" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "reseaux_sociaux", label: "Réseaux sociaux" },
+  { value: "telephone", label: "Téléphone" },
+  { value: "autre", label: "Autre" },
+] as const;
+
+// Doit rester synchronisé avec la contrainte CHECK sur orientations.status.
+// 4 statuts (PRODUCT_REQUIREMENTS.md §0, point 2) — pas de "Rendez-vous
+// déclaré" : un médiateur ne peut pas confirmer qu'un rendez-vous a
+// réellement été pris.
+export const ORIENTATION_STATUS_OPTIONS = [
+  { value: "information_transmise", label: "Information transmise" },
+  { value: "lien_efs_partage", label: "Lien EFS partagé" },
+  { value: "interesse", label: "Intéressé·e" },
+  { value: "presence_confirmee", label: "Présence confirmée" },
+] as const;

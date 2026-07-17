@@ -3,6 +3,31 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
+ * Les erreurs PostgREST/Supabase ne sont pas toujours des instances réelles
+ * de Error (selon la version, ce sont parfois de simples objets typés
+ * {message, code, details, hint}) : `error instanceof Error` peut donc
+ * silencieusement masquer le message utile. On tente d'abord message/code,
+ * puis on retombe sur un JSON.stringify plutôt qu'un texte générique muet.
+ */
+function describeError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const withFields = error as { message?: string; code?: string; details?: string };
+    if (withFields.message) {
+      return [withFields.message, withFields.code, withFields.details]
+        .filter(Boolean)
+        .join(" — ");
+    }
+    try {
+      return JSON.stringify(error);
+    } catch {
+      // ignore, repli ci-dessous
+    }
+  }
+  return String(error);
+}
+
+/**
  * Vérification de connectivité Supabase — critère de fin de l'Étape 1
  * (DEVELOPMENT_PLAN.md). Ne renvoie aucune donnée métier, uniquement un
  * indicateur de bon fonctionnement.
@@ -41,7 +66,7 @@ export async function GET() {
     checks.barriersSeeded = String(count);
   } catch (error) {
     checks.serviceRole = false;
-    checks.serviceRoleError = error instanceof Error ? error.message : "Erreur inconnue.";
+    checks.serviceRoleError = describeError(error);
   }
 
   try {
@@ -57,7 +82,7 @@ export async function GET() {
     checks.anonKey = true;
   } catch (error) {
     checks.anonKey = false;
-    checks.anonKeyError = error instanceof Error ? error.message : "Erreur inconnue.";
+    checks.anonKeyError = describeError(error);
   }
 
   const ok = checks.serviceRole === true && checks.anonKey === true;

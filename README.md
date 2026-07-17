@@ -27,7 +27,13 @@ npm run dev
 Pas d'auto-inscription : les comptes sont créés par invitation (admin ou coordinateur), connexion par lien magique envoyé par e-mail. Deux réglages Supabase à faire une seule fois, dans le dashboard :
 
 1. **Authentication → URL Configuration** : renseigner le `Site URL` (ex. `https://bomoi-mediation-hub.vercel.app`) et ajouter `https://bomoi-mediation-hub.vercel.app/auth/confirm` (et l'équivalent `http://localhost:3000/auth/confirm` pour le local) dans `Redirect URLs`. Sans ça, Supabase refuse les liens de connexion/invitation.
-2. **Authentication → Email Templates** : vérifier que les templates « Magic Link » et « Invite user » utilisent bien `{{ .TokenHash }}` et `{{ .Type }}` dans l'URL de confirmation (`/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}`) — c'est le format par défaut, à ne pas modifier.
+2. **Authentication → Email Templates → Magic Link** : **le template par défaut ne fonctionne pas avec cette architecture** et doit être modifié. Il utilise `{{ .ConfirmationURL }}`, qui pointe vers le endpoint hébergé par Supabase (`<projet>.supabase.co/auth/v1/verify`) ; celui-ci valide le lien puis redirige le navigateur avec les jetons dans un **fragment d'URL** (`#access_token=...`), que notre route serveur `/auth/confirm` ne peut pas lire (les fragments ne sont jamais envoyés au serveur). Résultat : la connexion échoue silencieusement et renvoie vers `/login`.
+
+   Remplacer, dans le corps du template, le lien `{{ .ConfirmationURL }}` par :
+   ```
+   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type={{ .Type }}&next=/
+   ```
+   Faire la même modification sur le template **Invite user** (utilisé pour les invitations de médiateurs). Les autres templates (Recovery, Email Change…) ne sont pas utilisés en V1 et peuvent rester tels quels.
 
 ### Créer le premier compte admin (bootstrap, une seule fois)
 

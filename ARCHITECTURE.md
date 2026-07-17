@@ -28,7 +28,7 @@ Aucun backend séparé. Les seules opérations privilégiées (invitation d'un m
 
 ## 3. Structure du projet
 
-État réel après l'Étape 2 (les entrées marquées « à venir » restent planifiées telles quelles pour les étapes suivantes) :
+État réel après l'Étape 3 (les entrées marquées « à venir » restent planifiées telles quelles pour les étapes suivantes) :
 
 ```
 proxy.ts                           # ex-middleware.ts (renommage Next.js 16) : session + gating
@@ -45,8 +45,23 @@ app/
   auth/
     signout/route.ts
   (mediator)/
-    layout.tsx
-    accueil/page.tsx               # à enrichir Étape 3+ (activités, orientations, freins)
+    layout.tsx                     # + BottomNav (4 onglets)
+    BottomNav.tsx
+    accueil/page.tsx               # actions rapides + activité récente réelle
+    activites/
+      page.tsx                     # liste, état vide, filtre par date
+      nouveau/
+        page.tsx
+        actions.ts                 # Server Action createActivity
+      [id]/
+        page.tsx                   # détail, bascule en édition via ?edit=1
+        actions.ts                 # updateActivity, archiveActivity (soft delete)
+        ArchiveButton.tsx
+      ActivityForm.tsx             # partagé création/édition
+      Stepper.tsx                  # bornes min/max — état invalide jamais atteignable depuis l'UI
+      ChipSelect.tsx
+    orientations/page.tsx          # placeholder, à venir Étape 4
+    freins/page.tsx                # placeholder, à venir Étape 5
   (coordinator)/
     layout.tsx
     dashboard/page.tsx             # placeholder, sections 0-4 à venir Étape 8
@@ -67,12 +82,14 @@ lib/
     middleware.ts                  # updateSession(), logique de gating utilisée par proxy.ts
   site-url.ts                      # URL publique du site pour les redirections e-mail
   config/
-    options.ts                     # listes fixes non stockées en base (campus, suggestions "support utilisé")
-  validation/                      # à venir : schémas Zod partagés client/serveur (Étape 3+)
+    options.ts                     # listes fixes non stockées en base (campus, type/durée/support d'activité)
+  validation/
+    activity.ts                    # schéma Zod partagé client/serveur, mêmes règles que les CHECK de la DB
   offline/                         # à venir Étape 6 : file IndexedDB + logique de sync
 supabase/
   migrations/
     0001_init.sql
+    0002_grants.sql                # restaure les privilèges Postgres perdus lors d'un incident de récupération
 ```
 
 ## 3bis. Listes fixes côté configuration (pas de table dédiée)

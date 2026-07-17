@@ -37,4 +37,8 @@
 body {
   background: var(--color-page);
   color: var(--color-text-strong);
+  /* Filet de sécurité mobile-first : un élément qui déborde (texte long
+     dans une rangée flex, etc.) ne doit jamais provoquer de scroll
+     horizontal sur toute la page. */
+  overflow-x: hidden;
 }

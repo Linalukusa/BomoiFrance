@@ -22,15 +22,17 @@ Chaque étape est petite, testable indépendamment, et laisse le projet dans un 
 - [x] Écran d'onboarding (charte + RGPD, deux cases horodatées) — `app/(auth)/onboarding`.
 - [x] Proxy (`proxy.ts`, ex-middleware) : session obligatoire, redirection `/onboarding` tant que non complété, séparation zones médiateur/coordinateur.
 - [x] Écrans d'atterrissage minimaux — `app/(mediator)/accueil`, `app/(coordinator)/dashboard`.
-- **Critère de fin** : un admin peut inviter un médiateur de test, qui se connecte, passe l'onboarding, arrive sur un écran d'accueil vide. **À revérifier en conditions réelles avec le flux par code** (le flux par lien avait été validé jusqu'à l'écran de clic puis s'est révélé peu fiable — voir README.md « Authentification »).
+- **Critère de fin** : un admin peut inviter un médiateur de test, qui se connecte, passe l'onboarding, arrive sur un écran d'accueil vide — validé le 17/07/2026 en conditions réelles (connexion par code, invitation fonctionnelle).
 
-## Étape 3 — Formulaire « Nouvelle activité » (sans orientation intégrée)
+## Étape 3 — Formulaire « Nouvelle activité » (sans orientation intégrée) ✅ validée
 
-- Layout mobile + navigation basse.
-- Formulaire une page, steppers, chips, validations (bornes ≥0, conversations ≤ atteintes, intéressées ≤ atteintes).
-- Enregistrement, jamais bloquant.
-- Liste des activités (état vide inclus), écran de détail.
-- **Critère de fin** : un médiateur de test crée, consulte, modifie et archive une activité.
+- [x] Layout mobile + navigation basse (4 onglets Accueil/Activité/Orientation/Freins ; Orientation et Freins pointent vers des placeholders honnêtes en attendant les Étapes 4-5).
+- [x] Formulaire une page, steppers, chips, validations (bornes ≥0, conversations ≤ atteintes, intéressées ≤ atteintes) — `app/(mediator)/activites/{ActivityForm,Stepper,ChipSelect}.tsx`. Les bornes sont appliquées directement sur les boutons +/− : un état invalide n'est jamais atteignable depuis l'UI, la validation Zod serveur (`lib/validation/activity.ts`) n'est qu'un filet de sécurité.
+- [x] Enregistrement, jamais bloquant.
+- [x] Liste des activités (état vide inclus, filtre simple par date) — `app/(mediator)/activites/page.tsx`.
+- [x] Écran de détail/édition/archivage — `app/(mediator)/activites/[id]/page.tsx`.
+- [x] Accueil médiateur enrichi avec activité récente réelle, reprenant l'état vide du mockup.
+- **Critère de fin** : un médiateur de test crée, consulte, modifie et archive une activité. **Vérifié** : schéma de données/RLS/contraintes CHECK testés de bout en bout sur Postgres 16 local (isolation entre médiateurs, blocage des valeurs invalides, archivage vs suppression définitive, journal d'audit) ; formulaire vérifié visuellement et interactivement (clamp des steppers) via Playwright. **Écrans de liste/détail à confirmer en conditions réelles** (nécessitent une session authentifiée réelle, non testables en local sans projet Supabase).
 
 ## Étape 4 — Orientations
 

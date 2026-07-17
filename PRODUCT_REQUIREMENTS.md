@@ -47,6 +47,12 @@ Pour éviter toute dérive de périmètre, la V1 exclut explicitement (sauf vali
 
 La distinction se fait uniquement par la colonne `profiles.role`, contrôlée par Row Level Security. Une seule authentification, un seul déploiement — l'interface s'adapte simplement selon le rôle connecté (layout mobile pour `mediator`, layout desktop/tablette pour `coordinator`/`admin`).
 
+### 2.1 Double casquette coordinateur/admin + médiateur
+
+Un coordinateur ou un admin qui va aussi sur le terrain n'a pas besoin d'un second compte : la même adresse e-mail peut porter à la fois son rôle principal (`profiles.role`) et une fiche médiateur (ligne dans `mediators`), les deux étant indépendantes. Un tel compte peut basculer librement entre la vue médiateur et la vue coordinateur/admin (lien de bascule dans chaque interface), avec la charte + le RGPD à accepter séparément pour la partie médiateur avant de créer des activités.
+
+**Dans l'autre sens, ce n'est jamais possible** : un compte dont le rôle est `mediator` ne peut jamais accéder à la zone coordinateur/admin, quelle que soit la situation. Un médiateur qui devient plus tard coordinateur nécessite un changement explicite de `profiles.role` par un admin (`set_user_role`), pas une simple fiche supplémentaire.
+
 ## 3. Système de design (référence : maquettes Claude Design)
 
 Les maquettes font foi pour la structure des écrans, les composants et la mise en page. Tokens extraits :

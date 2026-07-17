@@ -32,6 +32,13 @@ export default async function AccueilPage() {
     .eq("id", user.id)
     .single();
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  const isCoordinatorOrAdmin = profile?.role === "coordinator" || profile?.role === "admin";
+
   const { data: recentActivities } = await supabase
     .from("activities")
     .select("id, activity_date, campus, activity_type, people_reached, interested_people")
@@ -49,7 +56,17 @@ export default async function AccueilPage() {
             {mediator?.first_name ?? "—"}
           </p>
         </div>
-        <SignOutButton />
+        <div className="flex items-center gap-4">
+          {isCoordinatorOrAdmin && (
+            <Link
+              href="/dashboard"
+              className="text-sm text-text-muted underline underline-offset-2"
+            >
+              Vue coordinateur
+            </Link>
+          )}
+          <SignOutButton />
+        </div>
       </div>
 
       <div className="space-y-3">

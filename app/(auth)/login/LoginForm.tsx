@@ -1,8 +1,19 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { type EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { translateAuthError } from "@/lib/auth-errors";
+
+/**
+ * GoTrue catégorise en interne le jeton envoyé selon l'état du compte
+ * (première confirmation d'une invitation vs connexion habituelle), et
+ * verifyOtp échoue avec "otp_expired" si le "type" fourni ne correspond
+ * pas à cette catégorie — même pour un code tout juste reçu. On essaie les
+ * types plausibles dans l'ordre plutôt que de dépendre d'une seule
+ * hypothèse invérifiable sans accès direct au projet Supabase.
+ */
+const OTP_TYPE_CANDIDATES: EmailOtpType[] = ["email", "invite", "magiclink", "signup"];
 
 /**
  * Connexion par code à 6 chiffres saisi manuellement (pas de lien cliquable).
@@ -47,22 +58,28 @@ export function LoginForm({ initialError }: { initialError?: string }) {
     setErrorMessage("");
 
     const supabase = createClient();
-    const { error } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: "email",
-    });
+    let lastError: { message: string } | null = null;
 
-    if (error) {
-      setStatus("error");
-      setErrorMessage(translateAuthError(error.message));
-      return;
+    for (const type of OTP_TYPE_CANDIDATES) {
+      const { error } = await supabase.auth.verifyOtp({ email, token: code, type });
+      if (!error) {
+        // Rechargement complet (pas de router.push) : le proxy doit relire la
+        // session tout juste établie pour décider de la redirection
+        // (onboarding, accueil ou dashboard selon le rôle).
+        window.location.assign("/");
+        return;
+      }
+      lastError = error;
+      // "otp_expired" couvre aussi bien "vraiment expiré" que "type de jeton
+      // non trouvé" côté GoTrue : on continue d'essayer les autres types.
+      // Toute autre erreur (ex. code à 6 chiffres mal saisi) est définitive.
+      if (error.message.toLowerCase().includes("expired") === false) {
+        break;
+      }
     }
 
-    // Rechargement complet (pas de router.push) : le proxy doit relire la
-    // session tout juste établie pour décider de la redirection (onboarding,
-    // accueil ou dashboard selon le rôle).
-    window.location.assign("/");
+    setStatus("error");
+    setErrorMessage(translateAuthError(lastError?.message ?? ""));
   }
 
   return (

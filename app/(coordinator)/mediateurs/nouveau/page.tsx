@@ -1,5 +1,6 @@
 import { CAMPUS_OPTIONS } from "@/lib/config/options";
 import { inviteMediator } from "./actions";
+import { SubmitButton } from "./SubmitButton";
 
 export default async function NouveauMediateurPage({
   searchParams,
@@ -88,12 +89,9 @@ export default async function NouveauMediateurPage({
               id="university"
               name="university"
               required
-              defaultValue=""
+              defaultValue={CAMPUS_OPTIONS[0]}
               className="w-full rounded-lg border border-border bg-card px-4 py-3 text-text-strong focus:outline-none focus:ring-2 focus:ring-bomoi-red"
             >
-              <option value="" disabled>
-                Sélectionner…
-              </option>
               {CAMPUS_OPTIONS.map((campus) => (
                 <option key={campus} value={campus}>
                   {campus}
@@ -102,12 +100,7 @@ export default async function NouveauMediateurPage({
             </select>
           </div>
 
-          <button
-            type="submit"
-            className="w-full rounded-full bg-bomoi-red px-5 py-3 font-bold text-white"
-          >
-            Envoyer l&apos;invitation
-          </button>
+          <SubmitButton />
         </form>
       </div>
     </div>

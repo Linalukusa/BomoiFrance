@@ -11,9 +11,11 @@ import { NextResponse } from "next/server";
  * par Supabase, sans transformation intermédiaire.
  *
  * Trois vérifications indépendantes :
- * - authService : le service GoTrue (auth) répond-il ? (endpoint public,
- *   sans clé — si ça échoue, le projet Supabase est probablement en pause
- *   ou l'URL est fausse, indépendamment de toute clé API)
+ * - authService : le service GoTrue (auth) répond-il, indépendamment des
+ *   privilèges Postgres sur les tables ? (nécessite quand même la clé anon
+ *   sur ce projet — un 401 générique "no apikey" à ce niveau, avant même
+ *   d'atteindre la base, indiquerait plutôt un projet en pause ou une URL
+ *   incorrecte)
  * - restViaAnonKey : la clé publique (celle du navigateur) est-elle valide ?
  * - restViaServiceRole : la clé privée (utilisée côté serveur) est-elle valide ?
  */
@@ -33,7 +35,7 @@ export async function GET() {
   }
 
   const [authService, restViaAnonKey, restViaServiceRole] = await Promise.all([
-    rawCheck(`${url}/auth/v1/health`),
+    rawCheck(`${url}/auth/v1/health`, { apikey: anonKey! }),
     rawCheck(`${url}/rest/v1/barriers?select=id&limit=1`, {
       apikey: anonKey!,
       Authorization: `Bearer ${anonKey}`,

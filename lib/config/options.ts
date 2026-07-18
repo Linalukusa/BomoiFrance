@@ -68,3 +68,18 @@ export const ORIENTATION_STATUS_OPTIONS = [
   { value: "interesse", label: "Intéressé·e" },
   { value: "presence_confirmee", label: "Présence confirmée" },
 ] as const;
+
+// Doit rester synchronisé avec la contrainte CHECK sur mediators.status.
+export const MEDIATOR_STATUS_OPTIONS = [
+  { value: "candidat", label: "Candidat" },
+  { value: "selectionne", label: "Sélectionné" },
+  { value: "forme", label: "Formé" },
+  { value: "actif", label: "Actif" },
+  { value: "inactif", label: "Inactif" },
+] as const;
+
+export const PROFILE_ROLE_OPTIONS = [
+  { value: "mediator", label: "Médiateur" },
+  { value: "coordinator", label: "Coordinateur" },
+  { value: "admin", label: "Admin" },
+] as const;

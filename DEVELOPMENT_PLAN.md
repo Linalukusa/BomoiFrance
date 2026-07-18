@@ -70,12 +70,14 @@ Reportée explicitement — pas de file IndexedDB/synchronisation à ce stade du
   - Les vues créées avec l'option par défaut s'exécutent avec les droits de leur propriétaire (`postgres`), qui contourne RLS — n'importe quel rôle `authenticated`, y compris un simple médiateur, aurait obtenu l'agrégat de **tout le programme** en interrogeant directement la vue via l'API, ce que le PRD interdit explicitement (« un médiateur ne peut jamais voir une vue agrégée du programme », §2). Corrigé avec l'option `security_invoker = true` (Postgres 15+) : les policies RLS des tables sous-jacentes s'appliquent alors au rôle appelant réel. Testé explicitement : un médiateur interrogeant `v_dashboard_impact` directement ne voit que ses propres données agrégées (jamais celles des autres), un coordinateur voit tout le programme, `anon` n'a aucun accès (`revoke`).
   - Comme pour les fonctions (0005), les `alter default privileges` de `0002_grants.sql` rouvraient l'accès à `anon`/`authenticated` sur ces nouvelles vues — `revoke` explicite en fin de migration.
 
-## Étape 9 — Gestion des médiateurs et des comptes (coordinateur/admin)
+## Étape 9 — Gestion des médiateurs et des comptes (coordinateur/admin) — partielle, validée hors collectes
 
-- Liste/fiche médiateur, édition (hors rôle), invitation.
-- Écran admin de gestion des rôles (`set_user_role`), suppression définitive avec double confirmation.
-- Écran admin de gestion des collectes (`aggregate_collection_results`) : création à l'avance, saisie des résultats après coup.
-- **Critère de fin** : un admin change le rôle d'un compte de test, l'action apparaît dans `audit_logs` ; un coordinateur tente la même action et est bloqué.
+- [x] Liste médiateurs — `app/(coordinator)/mediateurs/page.tsx` : recherche simple (nom/université), badges de statut (`StatusBadge.tsx`, pilule sombre/claire/estompée selon PRD §3), lien vers l'invitation déjà existante (Étape 2).
+- [x] Fiche médiateur, édition hors rôle — `app/(coordinator)/mediateurs/[id]/{page,MediatorForm}.tsx` + `actions.ts` (`updateMediator`) : prénom/nom/université/statut/langues/disponibilité, accessible à coordinator ET admin (`mediators_update_coordinator`). Ne touche jamais `profiles.role` — colonne portée par une autre table, aucun champ rôle dans ce formulaire.
+- [x] Gestion des rôles (admin uniquement) — `RoleSelector.tsx` + `changeRole` : passe exclusivement par la RPC `set_user_role` (déjà présente depuis `0001_init.sql`), qui revérifie `is_admin()` en interne et journalise dans `audit_logs`. Auto-modification de son propre rôle bloquée côté écran.
+- [x] Suppression définitive (admin uniquement) — `DeleteAccountButton.tsx` + `deleteMediatorAccount` : double confirmation (avertissement explicite + mot `SUPPRIMER` à recopier), un seul appel `auth.admin.deleteUser()` (client `service_role`) qui supprime `auth.users` — la cascade `ON DELETE CASCADE` fait le reste (`profiles` → `mediators` → `activities`/`orientations`/`activity_barriers`/`link_clicks`), chaque suppression étant individuellement journalisée par le trigger `log_hard_delete()` déjà en place. Auto-suppression de son propre compte bloquée côté écran.
+- [ ] Écran admin de gestion des collectes (`aggregate_collection_results`) — **explicitement exclu de cette passe à la demande de BOMOI**, reste à faire séparément.
+- **Critère de fin** : un admin change le rôle d'un compte de test, l'action apparaît dans `audit_logs` ; un coordinateur tente la même action et est bloqué. **Vérifié** sur Postgres 16 local : coordinateur peut éditer les champs hors-rôle mais `set_user_role` lui est refusé (erreur RPC), un admin peut changer le rôle avec journalisation exacte (`old_role`/`new_role` dans `audit_logs.metadata`), un `DELETE` direct d'un coordinateur sur `mediators` est bloqué par RLS, et la suppression en cascade via `auth.users` produit bien deux entrées `hard_delete` (`profiles` et `mediators`) dans `audit_logs`.
 
 ## Étape 10 — PWA et finitions
 

@@ -79,7 +79,14 @@ app/
       nouveau/
         page.tsx                   # invitation (formulaire)
         actions.ts                 # Server Action service_role
-      page.tsx                     # à venir Étape 9 : liste + fiche médiateur
+      page.tsx                     # liste, recherche simple, StatusBadge.tsx
+      StatusBadge.tsx
+      [id]/
+        page.tsx                   # fiche : édition hors rôle + (admin) rôle/suppression définitive
+        actions.ts                 # updateMediator (RLS), changeRole (RPC set_user_role), deleteMediatorAccount (service_role)
+        MediatorForm.tsx
+        RoleSelector.tsx            # admin uniquement
+        DeleteAccountButton.tsx     # admin uniquement, double confirmation "SUPPRIMER"
   SignOutButton.tsx
   r/[slug]/route.ts                # redirection courte EFS publique, cf. §4bis
   api/
@@ -90,6 +97,9 @@ components/
     ProgressBar.tsx                # barre rouge fine sur piste grise + % (freins, campus)
     MonthlyBarChart.tsx            # barres mensuelles, 6 derniers mois
     InfoTooltip.tsx                # infobulle native (title), définitions verrouillées
+  forms/
+    SubmitButton.tsx               # useFormStatus — doit être un enfant du <form>, jamais le composant qui le rend
+    SuccessBanner.tsx              # confirmation "Enregistré avec succès" (?saved=1), nettoie l'URL au montage
 lib/
   supabase/
     client.ts                      # client navigateur (anon key, RLS)
@@ -107,6 +117,7 @@ lib/
     activity.ts                    # schéma Zod partagé client/serveur, mêmes règles que les CHECK de la DB
     orientation.ts
     barrier.ts
+    mediator.ts                    # édition hors rôle uniquement — aucun champ role
   offline/                         # à venir Étape 6 (non démarrée à la demande de BOMOI) : file IndexedDB + logique de sync
 supabase/
   migrations/

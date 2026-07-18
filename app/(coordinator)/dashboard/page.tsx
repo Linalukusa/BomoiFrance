@@ -112,12 +112,20 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <Link
-          href="/mediateurs/nouveau"
-          className="w-fit rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white"
-        >
-          + Inviter un médiateur
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/mediateurs"
+            className="w-fit rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-text-strong"
+          >
+            Médiateurs
+          </Link>
+          <Link
+            href="/mediateurs/nouveau"
+            className="w-fit rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white"
+          >
+            + Inviter un médiateur
+          </Link>
+        </div>
 
         <section className="space-y-3">
           <SectionHeading index={0} title="Objectifs vs réalisé" />

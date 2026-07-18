@@ -5,6 +5,7 @@ import { ACTIVITY_TYPE_OPTIONS, DURATION_OPTIONS } from "@/lib/config/options";
 import { ActivityForm } from "../ActivityForm";
 import { ArchiveButton } from "./ArchiveButton";
 import { updateActivity, archiveActivity } from "./actions";
+import { SuccessBanner } from "@/components/forms/SuccessBanner";
 
 const ACTIVITY_TYPE_LABELS = Object.fromEntries(
   ACTIVITY_TYPE_OPTIONS.map((option) => [option.value, option.label]),
@@ -26,10 +27,10 @@ export default async function ActiviteDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ edit?: string; error?: string }>;
+  searchParams: Promise<{ edit?: string; error?: string; saved?: string }>;
 }) {
   const { id } = await params;
-  const { edit, error } = await searchParams;
+  const { edit, error, saved } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -127,6 +128,8 @@ export default async function ActiviteDetailPage({
             {ACTIVITY_TYPE_LABELS[activity.activity_type] ?? activity.activity_type}
           </h1>
         </div>
+
+        {saved === "1" && <SuccessBanner message="Enregistré avec succès." />}
 
         {isArchived && (
           <p className="rounded-lg bg-card-alt p-3 text-sm text-text-muted">

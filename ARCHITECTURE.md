@@ -45,11 +45,11 @@ app/
   auth/
     signout/route.ts
   (mediator)/
-    layout.tsx                     # + BottomNav (4 onglets)
+    layout.tsx                     # + BottomNav (3 onglets)
     BottomNav.tsx
     accueil/page.tsx               # actions rapides + activité récente réelle
     activites/
-      page.tsx                     # liste, état vide, filtre par date
+      page.tsx                     # liste, état vide, filtre par date, carte lien EFS à partager
       nouveau/
         page.tsx
         actions.ts                 # Server Action createActivity
@@ -60,11 +60,10 @@ app/
       ActivityForm.tsx             # partagé création/édition
       Stepper.tsx                  # bornes min/max — état invalide jamais atteignable depuis l'UI
       ChipSelect.tsx
-    orientations/
-      page.tsx                     # liste (lecture seule) + carte lien EFS à partager (EfsLinkCard.tsx)
-      RadioList.tsx                # sélection unique du statut de suivi (lignes, pas des chips) — utilisé par PendingOrientations
       EfsLinkCard.tsx
-    activites/PendingOrientations.tsx  # brouillons d'orientation en mémoire, ajoutés dans le flux "Nouvelle activité"
+      PendingOrientations.tsx      # brouillons d'orientation en mémoire, ajoutés dans le flux "Nouvelle activité"
+    orientations/
+      RadioList.tsx                # sélection unique du statut de suivi (lignes, pas des chips) — utilisé par PendingOrientations ; pas de route ici (pas de page.tsx), plus d'écran dédié Orientation
     freins/
       page.tsx                     # liste groupée par activité (chips de freins + note)
       nouveau/
@@ -153,7 +152,7 @@ Objectif : un médiateur sans réseau (sous-sol, hall universitaire) peut rempli
 ## 6. Module de tracking EFS (liens courts)
 
 - Table unique `link_clicks` : un enregistrement par lien généré (par médiateur, éventuellement par activité), avec un compteur `click_count` et `last_clicked_at`.
-- Génération du lien : RPC Postgres `SECURITY DEFINER` `get_or_create_efs_link(p_activity_id uuid default null)`, appelable par le médiateur authentifié uniquement pour lui-même (vérifie `auth.uid()` en interne). Génère un `slug` aléatoire (8 caractères) si aucun lien n'existe déjà pour ce couple médiateur/activité — idempotent, rappelable sans jamais créer de doublon. Affiché avec un bouton « Copier » sur `app/(mediator)/orientations/page.tsx` (`EfsLinkCard.tsx`) : un lien général (sans activité) toujours visible en haut de la liste, plus un lien par activité disponible depuis le détail de chaque activité.
+- Génération du lien : RPC Postgres `SECURITY DEFINER` `get_or_create_efs_link(p_activity_id uuid default null)`, appelable par le médiateur authentifié uniquement pour lui-même (vérifie `auth.uid()` en interne). Génère un `slug` aléatoire (8 caractères) si aucun lien n'existe déjà pour ce couple médiateur/activité — idempotent, rappelable sans jamais créer de doublon. Affiché avec un bouton « Copier » en haut de `app/(mediator)/activites/page.tsx` (`EfsLinkCard.tsx`) : un lien général (sans activité), toujours visible au-dessus de la liste — pas d'écran dédié Orientation (retiré, voir PRD §0 point 7).
 - Redirection : `app/r/[slug]/route.ts`, Route Handler public (pas d'auth requise — ce sont les personnes sensibilisées, non authentifiées, qui cliquent). Ajouté à `PUBLIC_PATHS` dans `lib/supabase/middleware.ts` pour court-circuiter la vérification de session avant même la création du client Supabase — sans cette entrée, un visiteur anonyme cliquant le lien serait redirigé vers `/login` au lieu du site EFS (repéré et corrigé pendant la vérification de l'Étape 4). Utilise le client `service_role` côté serveur pour :
   1. incrémenter `click_count` de façon atomique via la RPC `SECURITY DEFINER` `increment_link_click(p_slug text)` (`UPDATE ... SET click_count = click_count + 1 WHERE slug = ... RETURNING true` en une seule requête — pas de lire-puis-écrire, pour ne perdre aucun clic en cas de clics concurrents) ; réservée au rôle `service_role` (`GRANT EXECUTE` explicite, `REVOKE` de `anon`/`authenticated` — voir migration 0005 ci-dessous) ;
   2. répondre `302` vers l'URL officielle EFS configurée (variable d'environnement `EFS_TARGET_URL`), que le `slug` ait été trouvé ou non — jamais d'erreur visible pour un visiteur externe, jamais d'indice sur l'existence ou non d'un lien.

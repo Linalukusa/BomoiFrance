@@ -43,7 +43,7 @@ export async function updateActivity(activityId: string, formData: FormData) {
     );
   }
 
-  redirect(`/activites/${activityId}`);
+  redirect(`/activites/${activityId}?saved=1`);
 }
 
 /**

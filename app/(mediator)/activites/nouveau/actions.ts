@@ -80,5 +80,5 @@ export async function createActivity(formData: FormData) {
     );
   }
 
-  redirect(`/activites/${activityId}`);
+  redirect(`/activites/${activityId}?saved=1`);
 }

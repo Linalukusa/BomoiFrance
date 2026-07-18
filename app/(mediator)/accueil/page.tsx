@@ -78,14 +78,6 @@ export default async function AccueilPage() {
           <p className="text-sm text-white/70">Enregistrer une action de terrain</p>
         </Link>
 
-        <Link
-          href="/orientations"
-          className="block rounded-xl border border-border bg-card p-4"
-        >
-          <p className="font-bold text-text-strong">Nouvelle orientation</p>
-          <p className="text-sm text-text-muted">Vers une collecte EFS, sans identité</p>
-        </Link>
-
         <Link href="/freins" className="block rounded-xl border border-border bg-card p-4">
           <p className="font-bold text-text-strong">Journal des freins</p>
           <p className="text-sm text-text-muted">Noter un frein rencontré</p>

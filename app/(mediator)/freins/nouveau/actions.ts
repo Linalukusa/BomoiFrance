@@ -55,5 +55,5 @@ export async function createBarrierEntry(formData: FormData) {
     backToForm(parsed.data.activity_id, error.message || "Enregistrement impossible.");
   }
 
-  redirect(`/activites/${parsed.data.activity_id}`);
+  redirect(`/activites/${parsed.data.activity_id}?saved=1`);
 }

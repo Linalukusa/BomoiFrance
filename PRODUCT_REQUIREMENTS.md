@@ -11,7 +11,8 @@ Les points ouverts soumis à BOMOI ont été tranchés comme suit :
 3. Champ « individuel ou groupe » sur l'activité : **supprimé**, redondant avec le type d'activité qui porte déjà cette information.
 4. Champ « support utilisé » : **conservé**, avec une liste de suggestions verrouillée : flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre.
 5. « Collecte concernée » sur l'orientation : **nullable**, référence `aggregate_collection_results` — confirmé tel quel.
-6. Formulaire « Nouvelle orientation » en autonome (§4.3, onglet dédié) : **retiré** après implémentation — une orientation ne se crée plus qu'intégrée au flux « Nouvelle activité » (§4.2). L'onglet « Orientation » de la navigation basse reste une liste de consultation (+ lien EFS à partager), pas un point d'entrée de création.
+6. Formulaire « Nouvelle orientation » en autonome (§4.3, onglet dédié) : **retiré** après implémentation — une orientation ne se crée plus qu'intégrée au flux « Nouvelle activité » (§4.2).
+7. Onglet dédié « Orientation » dans la navigation basse : **retiré** également (au-delà du seul formulaire de création) — plus aucun point d'entrée « Orientation » autonome, la navigation basse repasse à 3 onglets (Accueil / Activité / Freins). Le nombre d'orientations liées reste visible sur l'écran de détail d'une activité, et le lien EFS à partager (`get_or_create_efs_link`) est affiché sur la liste des activités (`/activites`) plutôt que sur un écran dédié.
 
 ## 1. Contexte et objectifs
 
@@ -75,7 +76,7 @@ Les maquettes font foi pour la structure des écrans, les composants et la mise 
 - Stepper numérique : bouton rond gris « − », valeur en gras au centre, bouton rond rouge « + » — **jamais de clavier natif**
 - Carte de mise en avant (une métrique clé par écran) : fond `#171412`, texte blanc
 - État vide : carte à bordure pointillée, texte gris centré + CTA sombre
-- Navigation basse (mobile, rôle médiateur) : 4 icônes + libellé (Accueil / Activité / Orientation / Freins), icône+texte actifs en rouge
+- Navigation basse (mobile, rôle médiateur) : 3 icônes + libellé (Accueil / Activité / Freins, voir §0 point 7), icône+texte actifs en rouge
 - Barres de progression (freins les plus fréquents) : barre rouge fine sur piste grise + pourcentage aligné à droite, avec infobulle de méthode de calcul
 - Section « Fiabilité des données » : bloc à bordure pointillée, visuellement séparé des indicateurs d'impact
 - Tableaux (coordinateur) : lignes simples, badges de statut (pilule sombre = actif, pilule claire = formé, pilule estompée = inactif)

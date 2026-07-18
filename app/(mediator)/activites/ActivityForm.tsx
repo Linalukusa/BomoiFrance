@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Stepper } from "./Stepper";
 import { ChipSelect } from "./ChipSelect";
 import { PendingOrientations, type PendingOrientation } from "./PendingOrientations";
+import { SubmitButton } from "@/components/forms/SubmitButton";
 import {
   ACTIVITY_TYPE_OPTIONS,
   CAMPUS_OPTIONS,
@@ -237,13 +238,7 @@ export function ActivityForm({
 
       {error && <p className="text-sm text-bomoi-red">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={!activityType}
-        className="w-full rounded-full bg-bomoi-red px-5 py-3 font-bold text-white disabled:opacity-40"
-      >
-        {submitLabel}
-      </button>
+      <SubmitButton label={submitLabel} disabled={!activityType} />
     </form>
   );
 }

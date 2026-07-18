@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getSiteUrl } from "@/lib/site-url";
 import { ACTIVITY_TYPE_OPTIONS } from "@/lib/config/options";
+import { EfsLinkCard } from "./EfsLinkCard";
 
 const ACTIVITY_TYPE_LABELS = Object.fromEntries(
   ACTIVITY_TYPE_OPTIONS.map((option) => [option.value, option.label]),
@@ -43,7 +45,7 @@ export default async function ActivitesPage({
 
   const { data: activities } = await query;
 
-  const [{ data: orientedRows }, { data: barrieredRows }] = await Promise.all([
+  const [{ data: orientedRows }, { data: barrieredRows }, { data: efsSlug }] = await Promise.all([
     supabase
       .from("orientations")
       .select("activity_id")
@@ -51,10 +53,14 @@ export default async function ActivitesPage({
       .is("archived_at", null)
       .not("activity_id", "is", null),
     supabase.from("activity_barriers").select("activity_id").eq("mediator_id", user.id).is("archived_at", null),
+    supabase.rpc("get_or_create_efs_link"),
   ]);
 
   const orientedActivityIds = new Set((orientedRows ?? []).map((row) => row.activity_id));
   const barrieredActivityIds = new Set((barrieredRows ?? []).map((row) => row.activity_id));
+
+  const siteUrl = await getSiteUrl();
+  const efsLink = typeof efsSlug === "string" && efsSlug.length > 0 ? `${siteUrl}/r/${efsSlug}` : null;
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 py-6">
@@ -67,6 +73,8 @@ export default async function ActivitesPage({
           + Nouvelle
         </Link>
       </div>
+
+      {efsLink && <EfsLinkCard link={efsLink} />}
 
       <form method="get" className="flex items-end gap-2">
         <div className="flex-1">

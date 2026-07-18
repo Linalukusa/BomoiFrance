@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/accueil", label: "Accueil", icon: HomeIcon },
   { href: "/activites", label: "Activité", icon: ChatIcon },
-  { href: "/orientations", label: "Orientation", icon: CompassIcon },
   { href: "/freins", label: "Freins", icon: WarningIcon },
 ] as const;
 
@@ -52,15 +51,6 @@ function ChatIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </svg>
-  );
-}
-
-function CompassIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="12" r="9" />
-      <path d="m14.5 9.5-2 5-5 2 2-5 5-2Z" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

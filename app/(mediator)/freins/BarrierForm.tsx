@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { ChipMultiSelect } from "./ChipMultiSelect";
 import { barrierEntrySchema } from "@/lib/validation/barrier";
+import { SubmitButton } from "@/components/forms/SubmitButton";
 
 export function BarrierForm({
   action,
@@ -92,13 +93,7 @@ export function BarrierForm({
 
       {error && <p className="text-sm text-bomoi-red">{error}</p>}
 
-      <button
-        type="submit"
-        disabled={barrierIds.length === 0 || !selectedActivityId}
-        className="w-full rounded-full bg-bomoi-red px-5 py-3 font-bold text-white disabled:opacity-40"
-      >
-        {submitLabel}
-      </button>
+      <SubmitButton label={submitLabel} disabled={barrierIds.length === 0 || !selectedActivityId} />
     </form>
   );
 }

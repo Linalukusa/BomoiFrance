@@ -79,7 +79,29 @@ Reportée explicitement — pas de file IndexedDB/synchronisation à ce stade du
 - [ ] Écran admin de gestion des collectes (`aggregate_collection_results`) — **explicitement exclu de cette passe à la demande de BOMOI**, reste à faire séparément.
 - **Critère de fin** : un admin change le rôle d'un compte de test, l'action apparaît dans `audit_logs` ; un coordinateur tente la même action et est bloqué. **Vérifié** sur Postgres 16 local : coordinateur peut éditer les champs hors-rôle mais `set_user_role` lui est refusé (erreur RPC), un admin peut changer le rôle avec journalisation exacte (`old_role`/`new_role` dans `audit_logs.metadata`), un `DELETE` direct d'un coordinateur sur `mediators` est bloqué par RLS, et la suppression en cascade via `auth.users` produit bien deux entrées `hard_delete` (`profiles` et `mediators`) dans `audit_logs`.
 
-## Étape 10 — PWA et finitions
+## Étape 10 — Base de données : flux d'action (migration `0007_v2_activity_flow.sql`) ✅ validée
+
+- [x] `activities` : ajout de `status`/`started_at`/`ended_at`/`closed_at`/`collection_id`/`orientations_in_person`/`orientations_remote`/`period`/`audience`/`event_context`/`supports_used`/`worked_well`/`journal_surprise`/`journal_quote`/`journal_learning`/`media_captured`/`category_version`. Les lignes existantes passent à `status = 'cloturee'`, `closed_at = updated_at`, `category_version = '2026-05'`. `duration`/`note`/`support_used` marquées `@deprecated` (commentaire de colonne), jamais supprimées.
+- [x] Table `activity_participants` (many-to-many activité ↔ médiateur), insérée automatiquement par `start_activity`.
+- [x] `activity_barriers` : ajout de `occurrences` (remplace présent/absent par un compteur) et `category_version`.
+- [x] Table `activity_misconceptions` (idées reçues, 200 caractères max, RLS identique à `activity_barriers`).
+- [x] Fonction helper `is_activity_participant(activity_id)` (`SECURITY DEFINER`, `STABLE`, sur le modèle de `current_role_name()`) pour que les policies RLS d'`activities`/`activity_participants`/`activity_barriers`/`activity_misconceptions` reconnaissent un participant sans récursion.
+- [x] RLS `activities` adaptée : lecture/mise à jour par le créateur **ou** un participant, plus coordinateur/admin en lecture. Trigger `guard_activity_update` (sur le modèle de `prevent_role_self_change`) : empêche la réassignation du créateur et réserve l'archivage au créateur seul, quel que soit le chemin pris (RLS seule ne peut pas comparer OLD/NEW sur une colonne différente de celle filtrée).
+- [x] RPC toutes `SECURITY INVOKER`, `mediator_id`/`auth.uid()` uniquement : `start_activity`, `increment_activity_counter` (bornage ≥ 0 et clamp descendant comme l'ancien `ActivityForm.tsx`), `increment_barrier` (upsert manuel plutôt que `ON CONFLICT DO UPDATE`, car la contrainte `occurrences >= 1` interdit d'écrire 0 — suppression de la ligne à la place), `end_activity`, `close_activity`. `create_activity_with_orientations` conservée mais `EXECUTE` révoqué pour `authenticated`.
+- [x] Vues mises à jour (`create or replace`, grants déjà posés en 0006 conservés) : `v_dashboard_impact.orientations_count` et `v_reliability.declared_orientations` additionnent les compteurs V2 et l'historique V1 ; `v_dashboard_barriers.occurrences` devient une somme ; indicateurs d'impact et répartition par campus excluent désormais les actions `en_cours`.
+- **Écart corrigé pendant la vérification locale** : la policy `activity_barriers_select` (et par cohérence `activity_misconceptions_select`) n'avait pas été rendue participant-aware. Conséquence concrète : `increment_barrier()` appelé par un participant qui n'est pas l'auteur du premier tap ne voyait aucune ligne (RLS bloquait son SELECT interne), traitait silencieusement ça comme « rien à décrémenter » et renvoyait 0 sans erreur ni échec visible — un faux succès. Corrigé en rendant `activity_barriers_select`/`activity_misconceptions_select` participant-aware, comme les autres policies de ces deux tables.
+- **Écart volontaire par rapport au texte de la section « activity_barriers : à adapter »**, qui ne mentionnait que l'ajout de colonnes : j'ai aussi rendu `activity_barriers_insert`/`_update_self` participant-aware et ajouté `activity_barriers_delete_self` (nécessaire pour qu'`increment_barrier` supprime la ligne à 0 sans être admin). Je l'ai fait parce que le critère de fin de l'Étape 11 (« ses taps s'ajoutent aux mêmes compteurs ») et l'esprit général de l'action partagée l'impliquent directement — sans ça, un participant qui n'est pas le créateur ne peut pas compter de frein du tout. À confirmer que c'est bien l'intention.
+- **Critère de fin — vérifié sur Postgres 16 local** (2 médiateurs A/B participants, 1 médiateur C non participant, 1 coordinateur) :
+  - une action démarrée par A avec B en participant est comptée **une seule fois** dans `v_dashboard_impact`, quel que soit celui des deux qui tape les compteurs ;
+  - C (non participant) ne voit pas l'action (`select` renvoie 0 ligne) et se fait explicitement refuser par `increment_activity_counter` ;
+  - les 5 compteurs ne descendent jamais sous 0 (testé en forçant des deltas négatifs supérieurs à la valeur courante), et le clamp descendant de `people_reached` ramène bien `meaningful_conversations`/`interested_people` ;
+  - `increment_barrier` : incrément par un participant non créateur, décrément jusqu'à suppression de la ligne à occurrences = 0, vérifiés ligne par ligne ;
+  - l'archivage par un participant non créateur est refusé par le trigger (`guard_activity_update`) ;
+  - `anon` reçoit `permission denied` sur les 6 nouvelles fonctions (`start_activity`, `increment_activity_counter`, `increment_barrier`, `end_activity`, `close_activity`, `is_activity_participant`) ;
+  - une action encore `en_cours` est bien exclue de `v_dashboard_impact` et `v_dashboard_campus` (testé en ajoutant une 2ᵉ action non terminée et en vérifiant que les totaux ne bougent pas).
+  **Reste à confirmer en conditions réelles** : rien côté application (Étape 10 est base de données uniquement) — à revalider une fois l'Étape 11 (écrans terrain) posée dessus.
+
+## Étape 17 — PWA et finitions
 
 - Manifest, service worker, test d'installation sur mobile (Android/iOS) et desktop.
 - Vérification contrastes/tailles tactiles sur les écrans réels.
@@ -87,7 +109,7 @@ Reportée explicitement — pas de file IndexedDB/synchronisation à ce stade du
 - Checklist `SECURITY.md` §9 exécutée intégralement.
 - **Critère de fin** : PWA installable, testée par au moins un médiateur BOMOI en conditions réelles avant mise en production.
 
-## Étape 11 — Recette avec BOMOI/EFS
+## Étape 18 — Recette avec BOMOI/EFS
 
 - Session de démonstration du dashboard coordinateur (Section 0 en premier, comme demandé pour un lecteur externe EFS/financeur).
 - Ajustements mineurs de libellés/priorités selon retours.

@@ -29,11 +29,12 @@ function formatDate(isoDate: string) {
  * ou coordinateur/admin (RLS, 0007_v2_activity_flow.sql) — plus seulement
  * son créateur. Pas de filtre mediator_id ici, RLS fait déjà le tri.
  *
- * Écran de clôture pas encore construit (Étape 12) : une action en_cours
- * redirige directement vers /terrain (seul endroit où elle est modifiable
- * pour l'instant) ; une action a_completer ou cloturee affiche le résumé —
- * les compteurs/freins restent modifiables depuis /terrain quel que soit le
- * statut (PRD V2, Étape 12).
+ * Une action en_cours redirige directement vers /terrain (pas encore
+ * d'heure de fin) ; a_completer propose de clôturer, cloturee propose de
+ * modifier — même écran /cloture dans les deux cas, guard_activity_update
+ * n'interdit la modification des champs de clôture qu'au-delà de
+ * mediator_id/archived_at (PRD V2, Étape 12). Les compteurs/freins restent
+ * modifiables depuis /terrain quel que soit le statut.
  */
 export default async function ActiviteDetailPage({
   params,
@@ -117,10 +118,21 @@ export default async function ActiviteDetailPage({
         )}
 
         {!isArchived && activity.status === "a_completer" && (
-          <p className="rounded-lg bg-card-alt p-3 text-sm text-text-muted">
-            Cette action doit être complétée (contexte, supports utilisés, idées reçues…) — l&apos;écran
-            de clôture arrive bientôt. Les chiffres restent modifiables depuis l&apos;écran terrain.
-          </p>
+          <Link
+            href={`/activites/${id}/cloture`}
+            className="block rounded-full bg-bomoi-red px-5 py-3 text-center text-sm font-bold text-white"
+          >
+            Compléter et clôturer l&apos;action
+          </Link>
+        )}
+
+        {!isArchived && activity.status === "cloturee" && (
+          <Link
+            href={`/activites/${id}/cloture`}
+            className="block rounded-full border border-border bg-card px-5 py-3 text-center text-sm font-bold text-text-strong"
+          >
+            Modifier
+          </Link>
         )}
 
         <dl className="space-y-3 rounded-xl border border-border bg-card p-4 text-sm">

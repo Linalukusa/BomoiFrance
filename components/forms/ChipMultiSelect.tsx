@@ -4,6 +4,8 @@
  * Sélection multiple par puces, jamais de boutons radio (PRD §4.4). Chaque
  * valeur cochée devient un input caché distinct sous le même `name`, pour
  * ressortir en tableau via `formData.getAll(name)` côté Server Action.
+ * Partagé entre le journal des freins et le sélecteur de médiateurs présents
+ * (écran « Démarrer une action », V2).
  */
 export function ChipMultiSelect({
   name,

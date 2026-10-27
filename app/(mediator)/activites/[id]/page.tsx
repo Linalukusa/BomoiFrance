@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ACTIVITY_TYPE_OPTIONS, DURATION_OPTIONS } from "@/lib/config/options";
-import { ActivityForm } from "../ActivityForm";
+import { ACTIVITY_TYPE_OPTIONS } from "@/lib/config/options";
 import { ArchiveButton } from "./ArchiveButton";
-import { updateActivity, archiveActivity } from "./actions";
+import { archiveActivity } from "./actions";
 import { SuccessBanner } from "@/components/forms/SuccessBanner";
 
 const ACTIVITY_TYPE_LABELS = Object.fromEntries(
   ACTIVITY_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
-const DURATION_LABELS = Object.fromEntries(
-  DURATION_OPTIONS.map((option) => [option.value, option.label]),
-);
+
+const STATUS_LABELS: Record<string, string> = {
+  en_cours: "En cours",
+  a_completer: "À compléter",
+  cloturee: "Clôturée",
+};
 
 function formatDate(isoDate: string) {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString("fr-FR", {
@@ -22,15 +24,26 @@ function formatDate(isoDate: string) {
   });
 }
 
+/**
+ * Depuis la V2, une action peut être vue par son créateur, un participant,
+ * ou coordinateur/admin (RLS, 0007_v2_activity_flow.sql) — plus seulement
+ * son créateur. Pas de filtre mediator_id ici, RLS fait déjà le tri.
+ *
+ * Écran de clôture pas encore construit (Étape 12) : une action en_cours
+ * redirige directement vers /terrain (seul endroit où elle est modifiable
+ * pour l'instant) ; une action a_completer ou cloturee affiche le résumé —
+ * les compteurs/freins restent modifiables depuis /terrain quel que soit le
+ * statut (PRD V2, Étape 12).
+ */
 export default async function ActiviteDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ edit?: string; error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string }>;
 }) {
   const { id } = await params;
-  const { edit, error, saved } = await searchParams;
+  const { error, saved } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -44,17 +57,20 @@ export default async function ActiviteDetailPage({
   const { data: activity } = await supabase
     .from("activities")
     .select(
-      "id, activity_date, campus, activity_type, people_reached, meaningful_conversations, interested_people, support_used, duration, note, archived_at",
+      "id, mediator_id, activity_date, campus, activity_type, status, people_reached, meaningful_conversations, interested_people, orientations_in_person, orientations_remote, archived_at",
     )
     .eq("id", id)
-    .eq("mediator_id", user.id)
     .single();
 
   if (!activity) {
     notFound();
   }
 
-  const [{ count: orientationsCount }, { data: barrierRows }] = await Promise.all([
+  if (activity.status === "en_cours") {
+    redirect(`/activites/${id}/terrain`);
+  }
+
+  const [{ count: legacyOrientationsCount }, { data: barrierRows }] = await Promise.all([
     supabase
       .from("orientations")
       .select("id", { count: "exact", head: true })
@@ -62,56 +78,17 @@ export default async function ActiviteDetailPage({
       .is("archived_at", null),
     supabase
       .from("activity_barriers")
-      .select("barriers(label)")
+      .select("occurrences, barriers(label)")
       .eq("activity_id", id)
       .is("archived_at", null),
   ]);
 
-  const barrierLabels = [
-    ...new Set(
-      ((barrierRows ?? []) as unknown as { barriers: { label: string } | null }[])
-        .map((row) => row.barriers?.label)
-        .filter((label): label is string => Boolean(label)),
-    ),
-  ];
+  const barrierEntries = (
+    (barrierRows ?? []) as unknown as { occurrences: number; barriers: { label: string } | null }[]
+  ).filter((row) => row.barriers?.label);
 
   const isArchived = Boolean(activity.archived_at);
-  const isEditing = edit === "1" && !isArchived;
-
-  if (isEditing) {
-    return (
-      <div className="flex flex-1 flex-col px-6 py-6">
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-4 flex items-center gap-3">
-            <Link
-              href={`/activites/${id}`}
-              aria-label="Annuler"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-text-strong"
-            >
-              ‹
-            </Link>
-            <h1 className="text-xl font-bold text-text-strong">Modifier l&apos;activité</h1>
-          </div>
-          {error && <p className="mb-4 text-sm text-bomoi-red">{decodeURIComponent(error)}</p>}
-          <ActivityForm
-            action={updateActivity.bind(null, id)}
-            initialValues={{
-              activity_date: activity.activity_date,
-              campus: activity.campus,
-              activity_type: activity.activity_type,
-              people_reached: activity.people_reached,
-              meaningful_conversations: activity.meaningful_conversations,
-              interested_people: activity.interested_people,
-              support_used: activity.support_used ?? "",
-              duration: activity.duration ?? "",
-              note: activity.note ?? "",
-            }}
-            submitLabel="Enregistrer les modifications"
-          />
-        </div>
-      </div>
-    );
-  }
+  const isCreator = activity.mediator_id === user.id;
 
   return (
     <div className="flex flex-1 flex-col px-6 py-6">
@@ -130,6 +107,7 @@ export default async function ActiviteDetailPage({
         </div>
 
         {saved === "1" && <SuccessBanner message="Enregistré avec succès." />}
+        {error && <p className="text-sm text-bomoi-red">{decodeURIComponent(error)}</p>}
 
         {isArchived && (
           <p className="rounded-lg bg-card-alt p-3 text-sm text-text-muted">
@@ -138,66 +116,63 @@ export default async function ActiviteDetailPage({
           </p>
         )}
 
+        {!isArchived && activity.status === "a_completer" && (
+          <p className="rounded-lg bg-card-alt p-3 text-sm text-text-muted">
+            Cette action doit être complétée (contexte, supports utilisés, idées reçues…) — l&apos;écran
+            de clôture arrive bientôt. Les chiffres restent modifiables depuis l&apos;écran terrain.
+          </p>
+        )}
+
         <dl className="space-y-3 rounded-xl border border-border bg-card p-4 text-sm">
           <Row label="Date" value={formatDate(activity.activity_date)} />
           <Row label="Lieu / université" value={activity.campus} />
-          <Row
-            label="Personnes atteintes"
-            value={String(activity.people_reached)}
-          />
-          <Row
-            label="Conversations significatives"
-            value={String(activity.meaningful_conversations)}
-          />
+          <Row label="Statut" value={STATUS_LABELS[activity.status] ?? activity.status} />
+          <Row label="Personnes atteintes" value={String(activity.people_reached)} />
+          <Row label="Conversations significatives" value={String(activity.meaningful_conversations)} />
           <Row label="Personnes intéressées" value={String(activity.interested_people)} />
-          {activity.support_used && <Row label="Support utilisé" value={activity.support_used} />}
-          {activity.duration && (
-            <Row label="Durée" value={DURATION_LABELS[activity.duration] ?? activity.duration} />
+          <Row label="Orientations en personne" value={String(activity.orientations_in_person)} />
+          <Row label="Orientations à distance" value={String(activity.orientations_remote)} />
+          {(legacyOrientationsCount ?? 0) > 0 && (
+            <Row label="Orientations liées (historique V1)" value={String(legacyOrientationsCount)} />
           )}
-          {activity.note && <Row label="Note" value={activity.note} />}
         </dl>
 
         <div className="rounded-xl border border-border bg-card p-4 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-text-strong">Orientations liées</span>
-            <span className="text-text-strong">{orientationsCount ?? 0}</span>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card p-4 text-sm">
           <div className="mb-1 flex items-center justify-between">
-            <span className="font-medium text-text-strong">Freins renseignés</span>
-            <span className="text-text-strong">{barrierLabels.length}</span>
+            <span className="font-medium text-text-strong">Freins entendus</span>
+            <span className="text-text-strong">
+              {barrierEntries.reduce((sum, row) => sum + row.occurrences, 0)}
+            </span>
           </div>
-          {barrierLabels.length > 0 && (
+          {barrierEntries.length > 0 && (
             <div className="mb-3 flex flex-wrap gap-1.5">
-              {barrierLabels.map((label) => (
+              {barrierEntries.map((row) => (
                 <span
-                  key={label}
+                  key={row.barriers!.label}
                   className="rounded-full bg-card-alt px-2.5 py-1 text-xs font-medium text-text-strong"
                 >
-                  {label}
+                  {row.barriers!.label} × {row.occurrences}
                 </span>
               ))}
             </div>
           )}
           {!isArchived && (
             <Link
-              href={`/freins/nouveau?activity_id=${id}`}
+              href={`/activites/${id}/terrain`}
               className="block rounded-full border border-dashed border-border bg-card-alt px-4 py-2 text-center text-sm font-bold text-bomoi-red"
             >
-              + Ajouter un frein
+              Modifier les chiffres et les freins
             </Link>
           )}
         </div>
 
-        {!isArchived && (
+        {!isArchived && isCreator && (
           <div className="flex gap-3">
             <Link
-              href={`/activites/${id}?edit=1`}
+              href={`/activites/${id}/terrain`}
               className="flex-1 rounded-full border border-border bg-card px-5 py-3 text-center text-sm font-bold text-text-strong"
             >
-              Modifier
+              Reprendre sur le terrain
             </Link>
             <ArchiveButton action={archiveActivity.bind(null, id)} />
           </div>

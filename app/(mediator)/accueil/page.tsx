@@ -16,6 +16,12 @@ function formatDate(isoDate: string) {
   });
 }
 
+/**
+ * Ordre d'affichage V2 (Étape 11) : En cours → À compléter → activité
+ * récente. "À compléter" renvoie vers le détail de l'action (qui explique
+ * l'état en attendant l'écran de clôture, Étape 12) plutôt que vers
+ * /cloture, qui n'existe pas encore.
+ */
 export default async function AccueilPage() {
   const supabase = await createClient();
   const {
@@ -39,13 +45,45 @@ export default async function AccueilPage() {
     .single();
   const isCoordinatorOrAdmin = profile?.role === "coordinator" || profile?.role === "admin";
 
-  const { data: recentActivities } = await supabase
-    .from("activities")
-    .select("id, activity_date, campus, activity_type, people_reached, interested_people")
-    .eq("mediator_id", user.id)
-    .is("archived_at", null)
-    .order("activity_date", { ascending: false })
-    .limit(2);
+  const { data: participantRows } = await supabase
+    .from("activity_participants")
+    .select("activity_id")
+    .eq("mediator_id", user.id);
+  const participantActivityIds = (participantRows ?? []).map((row) => row.activity_id);
+
+  const ownershipClause =
+    participantActivityIds.length > 0
+      ? `mediator_id.eq.${user.id},id.in.(${participantActivityIds.join(",")})`
+      : `mediator_id.eq.${user.id}`;
+
+  const activityFields =
+    "id, activity_date, campus, activity_type, people_reached, interested_people";
+
+  const [{ data: inProgressActivities }, { data: toCompleteActivities }, { data: recentActivities }] =
+    await Promise.all([
+      supabase
+        .from("activities")
+        .select(activityFields)
+        .eq("status", "en_cours")
+        .is("archived_at", null)
+        .or(ownershipClause)
+        .order("activity_date", { ascending: false }),
+      supabase
+        .from("activities")
+        .select(activityFields)
+        .eq("status", "a_completer")
+        .is("archived_at", null)
+        .or(ownershipClause)
+        .order("activity_date", { ascending: false }),
+      supabase
+        .from("activities")
+        .select(activityFields)
+        .eq("mediator_id", user.id)
+        .eq("status", "cloturee")
+        .is("archived_at", null)
+        .order("activity_date", { ascending: false })
+        .limit(2),
+    ]);
 
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 py-8">
@@ -74,13 +112,8 @@ export default async function AccueilPage() {
           href="/activites/nouveau"
           className="block rounded-xl bg-ink p-4 text-white"
         >
-          <p className="font-bold">Nouvelle activité</p>
-          <p className="text-sm text-white/70">Enregistrer une action de terrain</p>
-        </Link>
-
-        <Link href="/freins" className="block rounded-xl border border-border bg-card p-4">
-          <p className="font-bold text-text-strong">Journal des freins</p>
-          <p className="text-sm text-text-muted">Noter un frein rencontré</p>
+          <p className="font-bold">Démarrer une action</p>
+          <p className="text-sm text-white/70">Lieu, type — et c&apos;est parti</p>
         </Link>
 
         <Link
@@ -91,6 +124,24 @@ export default async function AccueilPage() {
           <p className="text-sm text-text-muted">Mon activité, mes freins, ma progression</p>
         </Link>
       </div>
+
+      {inProgressActivities && inProgressActivities.length > 0 && (
+        <ActivitySection
+          title="En cours"
+          activities={inProgressActivities}
+          hrefFor={(id) => `/activites/${id}/terrain`}
+          actionLabel="Reprendre"
+        />
+      )}
+
+      {toCompleteActivities && toCompleteActivities.length > 0 && (
+        <ActivitySection
+          title="À compléter"
+          activities={toCompleteActivities}
+          hrefFor={(id) => `/activites/${id}`}
+          actionLabel="Compléter"
+        />
+      )}
 
       <div>
         <div className="mb-3 flex items-center justify-between">
@@ -105,13 +156,13 @@ export default async function AccueilPage() {
         {!recentActivities || recentActivities.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-6 text-center">
             <p className="mb-4 text-sm text-text-muted">
-              Aucune activité enregistrée pour l&apos;instant — créez la première.
+              Aucune action terminée pour l&apos;instant — démarrez la première.
             </p>
             <Link
               href="/activites/nouveau"
               className="inline-block rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white"
             >
-              Créer ma première activité
+              Démarrer ma première action
             </Link>
           </div>
         ) : (
@@ -148,6 +199,46 @@ export default async function AccueilPage() {
           </ul>
         )}
       </div>
+    </div>
+  );
+}
+
+function ActivitySection({
+  title,
+  activities,
+  hrefFor,
+  actionLabel,
+}: {
+  title: string;
+  activities: { id: string; activity_date: string; campus: string; activity_type: string }[];
+  hrefFor: (id: string) => string;
+  actionLabel: string;
+}) {
+  return (
+    <div>
+      <h2 className="mb-3 font-bold text-text-strong">{title}</h2>
+      <ul className="space-y-3">
+        {activities.map((activity) => (
+          <li key={activity.id}>
+            <Link
+              href={hrefFor(activity.id)}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-4"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-bold text-text-strong">
+                  {ACTIVITY_TYPE_LABELS[activity.activity_type] ?? activity.activity_type}
+                </p>
+                <p className="truncate text-sm text-text-muted">
+                  {activity.campus} — {formatDate(activity.activity_date)}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-bomoi-red px-4 py-2 text-sm font-bold text-white">
+                {actionLabel}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

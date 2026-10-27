@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// V2 : 3 onglets (Accueil, Actions, Mon parcours) — l'onglet Freins
+// disparaît, le journal des freins se fait désormais depuis l'écran terrain
+// d'une action (Étape 11). Le 3e onglet pointe provisoirement vers
+// /statistiques : /parcours (Mon parcours, Étape 13) n'existe pas encore à
+// ce stade du plan — à corriger une fois cette étape posée.
 const TABS = [
   { href: "/accueil", label: "Accueil", icon: HomeIcon },
-  { href: "/activites", label: "Activité", icon: ChatIcon },
-  { href: "/freins", label: "Freins", icon: WarningIcon },
+  { href: "/activites", label: "Actions", icon: ChatIcon },
+  { href: "/statistiques", label: "Mes stats", icon: ChartIcon },
 ] as const;
 
 export function BottomNav() {
@@ -55,12 +60,11 @@ function ChatIcon() {
   );
 }
 
-function WarningIcon() {
+function ChartIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 4 2 20h20L12 4Z" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M12 10v4" strokeLinecap="round" />
-      <circle cx="12" cy="17" r="0.75" fill="currentColor" stroke="none" />
+      <path d="M4 20V10M12 20V4M20 20v-7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 20h18" strokeLinecap="round" />
     </svg>
   );
 }

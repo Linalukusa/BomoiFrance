@@ -1,25 +1,19 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { activitySchema } from "@/lib/validation/activity";
-import { orientationSchema } from "@/lib/validation/orientation";
+import { ACTIVITY_TYPE_OPTIONS } from "@/lib/config/options";
 
-const pendingOrientationsSchema = z.array(orientationSchema).max(50);
+const ACTIVITY_TYPE_VALUES: readonly string[] = ACTIVITY_TYPE_OPTIONS.map((option) => option.value);
 
 /**
- * L'UI (steppers bornés, campus par défaut, bouton désactivé sans type)
- * empêche déjà la quasi-totalité des états invalides — cette validation
- * est un rempart, pas le chemin normal.
- *
- * Passe par la RPC create_activity_with_orientations (voir
- * supabase/migrations/0003_activity_with_orientations.sql) plutôt qu'un
- * simple insert : les orientations ajoutées dans le même flux doivent être
- * enregistrées avec l'activité en une seule transaction, pour éviter une
- * activité orpheline si l'un des deux échouait séparément.
+ * Démarre une action partagée via la RPC start_activity (voir
+ * supabase/migrations/0007_v2_activity_flow.sql) : crée l'activité
+ * (status = en_cours) et insère le créateur + les participants choisis en
+ * une seule transaction. Les chiffres se saisissent ensuite sur l'écran
+ * terrain, pas ici.
  */
-export async function createActivity(formData: FormData) {
+export async function startActivity(formData: FormData) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,56 +23,29 @@ export async function createActivity(formData: FormData) {
     redirect("/login");
   }
 
-  const parsed = activitySchema.safeParse(Object.fromEntries(formData));
+  const campus = (formData.get("campus") as string) || "";
+  const activityType = (formData.get("activity_type") as string) || "";
+  const collectionId = (formData.get("collection_id") as string) || null;
+  const participantIds = formData.getAll("participant_ids") as string[];
 
-  if (!parsed.success) {
+  if (!campus || !ACTIVITY_TYPE_VALUES.includes(activityType)) {
     redirect(
-      `/activites/nouveau?error=${encodeURIComponent(parsed.error.issues[0]?.message ?? "Formulaire invalide.")}`,
+      `/activites/nouveau?error=${encodeURIComponent("Merci de choisir un lieu et un type d'action.")}`,
     );
   }
 
-  const rawOrientations = formData.get("orientations");
-  let pendingOrientations: z.infer<typeof pendingOrientationsSchema> = [];
-
-  if (typeof rawOrientations === "string" && rawOrientations.length > 0) {
-    let parsedJson: unknown;
-    try {
-      parsedJson = JSON.parse(rawOrientations);
-    } catch {
-      redirect(`/activites/nouveau?error=${encodeURIComponent("Orientations invalides.")}`);
-    }
-
-    const orientationsParsed = pendingOrientationsSchema.safeParse(parsedJson);
-    if (!orientationsParsed.success) {
-      redirect(
-        `/activites/nouveau?error=${encodeURIComponent(
-          orientationsParsed.error.issues[0]?.message ?? "Orientation invalide.",
-        )}`,
-      );
-    }
-    pendingOrientations = orientationsParsed.data;
-  }
-
-  const { support_used, duration, note, ...rest } = parsed.data;
-
-  const { data: activityId, error } = await supabase.rpc("create_activity_with_orientations", {
-    p_activity_date: rest.activity_date,
-    p_campus: rest.campus,
-    p_activity_type: rest.activity_type,
-    p_people_reached: rest.people_reached,
-    p_meaningful_conversations: rest.meaningful_conversations,
-    p_interested_people: rest.interested_people,
-    p_support_used: support_used || null,
-    p_duration: duration || null,
-    p_note: note || null,
-    p_orientations: pendingOrientations,
+  const { data: activityId, error } = await supabase.rpc("start_activity", {
+    p_campus: campus,
+    p_activity_type: activityType,
+    p_collection_id: collectionId,
+    p_participant_ids: participantIds,
   });
 
   if (error || !activityId) {
     redirect(
-      `/activites/nouveau?error=${encodeURIComponent(error?.message ?? "Enregistrement impossible.")}`,
+      `/activites/nouveau?error=${encodeURIComponent(error?.message ?? "Impossible de démarrer l'action.")}`,
     );
   }
 
-  redirect(`/activites/${activityId}?saved=1`);
+  redirect(`/activites/${activityId}/terrain`);
 }

@@ -24,12 +24,15 @@ RLS est activée sur les 9 tables dès `0001_init.sql`. Aucune table exposée à
 
 Aucun rôle applicatif (`mediator`/`coordinator`) ne dispose jamais d'une policy DELETE sur les tables de données de terrain : la suppression définitive est réservée à `admin`, et toute suppression déclenche un trigger `log_hard_delete` vers `audit_logs` avant la suppression effective (snapshot complet de la ligne dans `metadata`).
 
+> **V2** : la matrice ci-dessus reste la référence V1. Les tables ajoutées depuis (`activity_participants`, `activity_misconceptions`, et `activities`/`activity_barriers` désormais lisibles/modifiables par un participant en plus du créateur) sont documentées au fil des migrations `0007+` ; la checklist complète sera mise à jour en une seule passe à l'Étape 16 du plan de développement.
+
 ## 3. Élévation de privilèges contrôlée
 
-Deux opérations nécessitent plus que ce que RLS autorise pour un utilisateur normal :
+Deux opérations nécessitaient plus que ce que RLS autorise pour un utilisateur normal en V1, une troisième ajoutée en V2 :
 
 1. **Changement de rôle** (`profiles.role`) : jamais par une simple requête `UPDATE`. Un trigger `prevent_role_self_change` bloque toute tentative hors admin, et la seule voie légitime est la fonction `SECURITY DEFINER` `set_user_role(user_id, new_role)`, appelée depuis une Server Action Next.js qui vérifie elle-même la session admin avant l'appel. Chaque changement est journalisé automatiquement dans `audit_logs`.
 2. **Invitation d'un médiateur** (création `auth.users` + `profiles` + `mediators`) : passe par une Route Handler serveur utilisant `SUPABASE_SERVICE_ROLE_KEY`. Cette clé n'est **jamais** envoyée au client, n'est **jamais** préfixée `NEXT_PUBLIC_`, et n'est utilisée que dans du code exécuté côté serveur (Route Handlers, Server Actions).
+3. **V2 — Liste des médiateurs actifs pour le sélecteur de participants** (`list_active_mediators()`, `0008_peer_mediator_picker.sql`) : l'écran « Démarrer une action » doit proposer les autres médiateurs actifs comme participants potentiels, ce que `mediators_select` (point 1 du tableau ci-dessus) interdit délibérément. Plutôt que d'élargir cette policy — ce qui exposerait université/langues/disponibilité et, depuis l'Étape 13, le statut de consentement recherche et `research_code` de chaque médiateur à tous les autres — une fonction `SECURITY DEFINER` étroite n'expose que `id`/`first_name`/`last_name` des médiateurs `actif`, rien d'autre. `mediators_select` reste inchangée.
 
 ## 4. Module de tracking EFS — anti-bot sans conservation d'IP
 

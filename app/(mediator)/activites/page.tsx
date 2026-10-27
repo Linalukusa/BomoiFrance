@@ -9,6 +9,11 @@ const ACTIVITY_TYPE_LABELS = Object.fromEntries(
   ACTIVITY_TYPE_OPTIONS.map((option) => [option.value, option.label]),
 );
 
+const STATUS_BADGE_LABELS: Record<string, string> = {
+  en_cours: "En cours",
+  a_completer: "À compléter",
+};
+
 function formatDate(isoDate: string) {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString("fr-FR", {
     day: "2-digit",
@@ -17,6 +22,12 @@ function formatDate(isoDate: string) {
   });
 }
 
+/**
+ * Depuis la V2, inclut les actions où le médiateur est participant, pas
+ * seulement créateur (une action partagée doit apparaître dans la liste de
+ * chacun de ses participants). Le badge "à compléter" se base désormais sur
+ * `status`, plus sur la présence d'orientations/freins (Étape 11).
+ */
 export default async function ActivitesPage({
   searchParams,
 }: {
@@ -33,31 +44,30 @@ export default async function ActivitesPage({
     redirect("/login");
   }
 
+  const { data: participantRows } = await supabase
+    .from("activity_participants")
+    .select("activity_id")
+    .eq("mediator_id", user.id);
+
+  const participantActivityIds = (participantRows ?? []).map((row) => row.activity_id);
+
   let query = supabase
     .from("activities")
-    .select("id, activity_date, campus, activity_type, people_reached, interested_people")
-    .eq("mediator_id", user.id)
+    .select("id, activity_date, campus, activity_type, status, people_reached, interested_people")
     .is("archived_at", null)
     .order("activity_date", { ascending: false });
+
+  query =
+    participantActivityIds.length > 0
+      ? query.or(`mediator_id.eq.${user.id},id.in.(${participantActivityIds.join(",")})`)
+      : query.eq("mediator_id", user.id);
 
   if (from) query = query.gte("activity_date", from);
   if (to) query = query.lte("activity_date", to);
 
   const { data: activities } = await query;
 
-  const [{ data: orientedRows }, { data: barrieredRows }, { data: efsSlug }] = await Promise.all([
-    supabase
-      .from("orientations")
-      .select("activity_id")
-      .eq("mediator_id", user.id)
-      .is("archived_at", null)
-      .not("activity_id", "is", null),
-    supabase.from("activity_barriers").select("activity_id").eq("mediator_id", user.id).is("archived_at", null),
-    supabase.rpc("get_or_create_efs_link"),
-  ]);
-
-  const orientedActivityIds = new Set((orientedRows ?? []).map((row) => row.activity_id));
-  const barrieredActivityIds = new Set((barrieredRows ?? []).map((row) => row.activity_id));
+  const { data: efsSlug } = await supabase.rpc("get_or_create_efs_link");
 
   const siteUrl = await getSiteUrl();
   const efsLink = typeof efsSlug === "string" && efsSlug.length > 0 ? `${siteUrl}/r/${efsSlug}` : null;
@@ -65,12 +75,12 @@ export default async function ActivitesPage({
   return (
     <div className="flex flex-1 flex-col gap-6 px-6 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-strong">Mes activités</h1>
+        <h1 className="text-xl font-bold text-text-strong">Mes actions</h1>
         <Link
           href="/activites/nouveau"
           className="rounded-full bg-bomoi-red px-4 py-2 text-sm font-bold text-white"
         >
-          + Nouvelle
+          + Démarrer
         </Link>
       </div>
 
@@ -113,29 +123,28 @@ export default async function ActivitesPage({
         <div className="rounded-xl border border-dashed border-border p-6 text-center">
           <p className="mb-4 text-sm text-text-muted">
             {from || to
-              ? "Aucune activité ne correspond à cette période."
-              : "Aucune activité enregistrée pour l'instant — créez la première."}
+              ? "Aucune action ne correspond à cette période."
+              : "Aucune action enregistrée pour l'instant — démarrez la première."}
           </p>
           <Link
             href="/activites/nouveau"
             className="inline-block rounded-full bg-ink px-5 py-2.5 text-sm font-bold text-white"
           >
-            Créer ma première activité
+            Démarrer ma première action
           </Link>
         </div>
       ) : (
         <ul className="space-y-3">
           {activities.map((activity) => {
-            const needsCompletion =
-              (activity.interested_people > 0 && !orientedActivityIds.has(activity.id)) ||
-              !barrieredActivityIds.has(activity.id);
+            const statusBadge = STATUS_BADGE_LABELS[activity.status];
+            const href =
+              activity.status === "en_cours"
+                ? `/activites/${activity.id}/terrain`
+                : `/activites/${activity.id}`;
 
             return (
               <li key={activity.id}>
-                <Link
-                  href={`/activites/${activity.id}`}
-                  className="block rounded-xl border border-border bg-card p-4"
-                >
+                <Link href={href} className="block rounded-xl border border-border bg-card p-4">
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="min-w-0 flex-1 truncate font-bold text-text-strong">
                       {ACTIVITY_TYPE_LABELS[activity.activity_type] ?? activity.activity_type}
@@ -155,9 +164,9 @@ export default async function ActivitesPage({
                         {activity.interested_people > 1 ? "s" : ""}
                       </span>
                     )}
-                    {needsCompletion && (
+                    {statusBadge && (
                       <span className="rounded-full border border-dashed border-border px-2 py-1 text-text-muted">
-                        À compléter
+                        {statusBadge}
                       </span>
                     )}
                   </div>

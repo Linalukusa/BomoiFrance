@@ -26,7 +26,9 @@ export const ACTIVITY_TYPE_OPTIONS = [
   { value: "presence_collecte", label: "Présence collecte" },
 ] as const;
 
-// Doit rester synchronisé avec la contrainte CHECK sur activities.duration.
+// @deprecated V2 : la durée est désormais calculée depuis started_at/ended_at
+// (écran terrain). Conservée uniquement pour afficher la durée des actions
+// closes avant la V2 (activities.duration, jamais réécrite depuis).
 export const DURATION_OPTIONS = [
   { value: "15min", label: "15 min" },
   { value: "30min", label: "30 min" },
@@ -47,26 +49,6 @@ export const SUPPORT_USED_OPTIONS = [
   "Lien EFS",
   "Aucun",
   "Autre",
-] as const;
-
-// Doit rester synchronisé avec la contrainte CHECK sur orientations.channel.
-export const ORIENTATION_CHANNEL_OPTIONS = [
-  { value: "en_personne", label: "En personne" },
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "reseaux_sociaux", label: "Réseaux sociaux" },
-  { value: "telephone", label: "Téléphone" },
-  { value: "autre", label: "Autre" },
-] as const;
-
-// Doit rester synchronisé avec la contrainte CHECK sur orientations.status.
-// 4 statuts (PRODUCT_REQUIREMENTS.md §0, point 2) — pas de "Rendez-vous
-// déclaré" : un médiateur ne peut pas confirmer qu'un rendez-vous a
-// réellement été pris.
-export const ORIENTATION_STATUS_OPTIONS = [
-  { value: "information_transmise", label: "Information transmise" },
-  { value: "lien_efs_partage", label: "Lien EFS partagé" },
-  { value: "interesse", label: "Intéressé·e" },
-  { value: "presence_confirmee", label: "Présence confirmée" },
 ] as const;
 
 // Doit rester synchronisé avec la contrainte CHECK sur mediators.status.

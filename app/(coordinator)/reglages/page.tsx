@@ -78,6 +78,21 @@ export default async function ReglagesPage({
             Enregistrer
           </button>
         </form>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="mb-1 font-bold text-text-strong">Export recherche (iCOMMS)</h2>
+          <p className="mb-3 text-sm leading-relaxed text-text-secondary">
+            Fichier CSV pseudonymisé (code de recherche à la place de l&apos;identité) — ne contient que
+            les médiateurs ayant un consentement recherche actif, jamais les autres.
+          </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- route de téléchargement de fichier, pas une page */}
+          <a
+            href="/api/export/usage"
+            className="block rounded-full border border-dashed border-border bg-card-alt px-4 py-3 text-center text-sm font-bold text-bomoi-red"
+          >
+            Télécharger les métriques d&apos;usage (CSV)
+          </a>
+        </div>
       </div>
     </div>
   );

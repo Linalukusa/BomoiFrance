@@ -37,6 +37,13 @@ Deux opérations nécessitaient plus que ce que RLS autorise pour un utilisateur
 
 Un garde-fou complémentaire, distinct de l'élévation de privilèges ci-dessus, protège les colonnes du parcours médiateur ajoutées à l'Étape 13 : RLS seule ne peut pas restreindre QUI modifie QUELLE colonne d'une même ligne (la policy `mediators_update_self`/`mediators_update_coordinator` reste, comme en V1, non filtrée par colonne). Le trigger `guard_mediator_journey_fields` (`0010_mediator_journey.sql`) comble cet angle mort, même principe que `guard_activity_update` (point suivant) : `research_consent_at`/`research_withdrawn_at` ne sont modifiables que par le médiateur lui-même (jamais par un coordinateur/admin — un consentement donné par un tiers serait invalide au sens RGPD) ; `certificate_status`/`certificate_issued_at`/`joined_at`/`left_at`/`leave_reason` ne sont modifiables que par un coordinateur/admin (jamais par le médiateur — sans ce garde-fou, il aurait pu s'auto-délivrer une attestation d'heures) ; `research_code` est immuable pour tout le monde une fois généré.
 
+## 3bis. Export de recherche pseudonymisé (V2, Étape 15)
+
+`app/api/export/[dataset]/route.ts` — admin uniquement (jamais coordinateur, même si celui-ci a par ailleurs un accès en lecture large à la plupart des données). Deux garanties revérifiées dans la route elle-même, pas seulement déduites d'`app_settings.research_collection_enabled` :
+
+- Jamais `mediator_id` ni nom/prénom dans la sortie — remplacés par `mediators.research_code` (pseudonyme opaque, immuable, `0010_mediator_journey.sql`).
+- Un médiateur sans consentement recherche actif (`research_consent_at` renseigné ET `research_withdrawn_at` vide) n'apparaît jamais dans l'export, même si ses métriques existent et restent visibles par l'admin dans l'application elle-même — le filtre s'applique uniquement à ce qui sort vers la recherche iCOMMS, jamais à ce que l'admin peut voir pour gérer le programme.
+
 ## 4. Module de tracking EFS — anti-bot sans conservation d'IP
 
 - La génération d'un lien court passe par `get_or_create_efs_link()`, `SECURITY DEFINER`, appelable uniquement par un médiateur authentifié pour lui-même.

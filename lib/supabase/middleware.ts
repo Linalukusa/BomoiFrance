@@ -3,7 +3,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/auth/signout", "/api/health", "/r"];
 const MEDIATOR_AREA_PATHS = ["/accueil", "/activites", "/statistiques", "/parcours", "/onboarding"];
-const COORDINATOR_AREA_PATHS = ["/dashboard", "/mediateurs"];
+const COORDINATOR_AREA_PATHS = [
+  "/dashboard",
+  "/mediateurs",
+  "/medias",
+  "/observations",
+  "/sessions",
+  "/collectes",
+  "/reglages",
+];
 
 function matchesPath(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

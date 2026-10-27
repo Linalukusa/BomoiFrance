@@ -42,6 +42,7 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   const [
+    { data: profile },
     { data: mediatorRecord },
     { data: impact },
     { data: barrierRows },
@@ -50,6 +51,7 @@ export default async function DashboardPage() {
     { data: collections },
     { data: monthlyActivities },
   ] = await Promise.all([
+    user ? supabase.from("profiles").select("role").eq("id", user.id).single() : Promise.resolve({ data: null }),
     user ? supabase.from("mediators").select("id").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null }),
     supabase.from("v_dashboard_impact").select("*").single(),
     supabase.from("v_dashboard_barriers").select("*"),
@@ -125,6 +127,44 @@ export default async function DashboardPage() {
           >
             + Inviter un médiateur
           </Link>
+          <Link
+            href="/medias"
+            className="w-fit rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-text-strong"
+          >
+            Médiathèque
+          </Link>
+          <Link
+            href="/observations"
+            className="w-fit rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-text-strong"
+          >
+            Observations
+          </Link>
+          <Link
+            href="/sessions"
+            className="w-fit rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-text-strong"
+          >
+            Sessions
+          </Link>
+          <Link
+            href="/collectes"
+            className="w-fit rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-text-strong"
+          >
+            Collectes
+          </Link>
+          <Link
+            href="/changements"
+            className="w-fit rounded-full border border-border bg-card px-5 py-2.5 text-sm font-bold text-text-strong"
+          >
+            Nouveautés
+          </Link>
+          {profile?.role === "admin" && (
+            <Link
+              href="/reglages"
+              className="w-fit rounded-full border border-dashed border-border bg-card-alt px-5 py-2.5 text-sm font-bold text-text-strong"
+            >
+              Réglages
+            </Link>
+          )}
         </div>
 
         <section className="space-y-3">

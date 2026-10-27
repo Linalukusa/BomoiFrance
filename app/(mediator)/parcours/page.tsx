@@ -111,6 +111,13 @@ export default async function ParcoursPage({
       >
         Voir mes statistiques d&apos;impact
       </Link>
+
+      <Link
+        href="/changements"
+        className="block rounded-full border border-dashed border-border bg-card-alt px-4 py-3 text-center text-sm font-bold text-bomoi-red"
+      >
+        Voir les nouveautés de l&apos;outil
+      </Link>
     </div>
   );
 }

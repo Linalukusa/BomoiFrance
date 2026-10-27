@@ -5,13 +5,14 @@ import { usePathname } from "next/navigation";
 
 // V2 : 3 onglets (Accueil, Actions, Mon parcours) — l'onglet Freins
 // disparaît, le journal des freins se fait désormais depuis l'écran terrain
-// d'une action (Étape 11). Le 3e onglet pointe provisoirement vers
-// /statistiques : /parcours (Mon parcours, Étape 13) n'existe pas encore à
-// ce stade du plan — à corriger une fois cette étape posée.
+// d'une action (Étape 11). /parcours (dates d'engagement, heures cumulées,
+// consentement recherche, attestation) remplace « Mes stats » dans la nav —
+// les indicateurs d'impact personnels (PRD §4.7) restent accessibles via un
+// lien depuis /parcours, pas doublés dans les deux écrans (Étape 13).
 const TABS = [
   { href: "/accueil", label: "Accueil", icon: HomeIcon },
   { href: "/activites", label: "Actions", icon: ChatIcon },
-  { href: "/statistiques", label: "Mes stats", icon: ChartIcon },
+  { href: "/parcours", label: "Mon parcours", icon: ChartIcon },
 ] as const;
 
 export function BottomNav() {

@@ -12,6 +12,10 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+function toDateInputValue(iso: string | null) {
+  return iso ? iso.slice(0, 10) : "";
+}
+
 type MediatorDetail = {
   id: string;
   first_name: string;
@@ -23,6 +27,13 @@ type MediatorDetail = {
   charter_accepted_at: string | null;
   privacy_accepted_at: string | null;
   created_at: string;
+  joined_at: string | null;
+  left_at: string | null;
+  leave_reason: string | null;
+  research_consent_at: string | null;
+  research_withdrawn_at: string | null;
+  certificate_status: string;
+  certificate_issued_at: string | null;
   profiles: { role: string } | null;
 };
 
@@ -56,7 +67,7 @@ export default async function MediateurDetailPage({
   const { data: mediatorRow } = await supabase
     .from("mediators")
     .select(
-      "id, first_name, last_name, university, languages, status, availability, charter_accepted_at, privacy_accepted_at, created_at, profiles(role)",
+      "id, first_name, last_name, university, languages, status, availability, charter_accepted_at, privacy_accepted_at, created_at, joined_at, left_at, leave_reason, research_consent_at, research_withdrawn_at, certificate_status, certificate_issued_at, profiles(role)",
     )
     .eq("id", id)
     .single();
@@ -105,8 +116,45 @@ export default async function MediateurDetailPage({
               status: mediator.status,
               availability: mediator.availability ?? "",
               languages: (mediator.languages ?? []).join(", "),
+              joined_at: toDateInputValue(mediator.joined_at),
+              left_at: toDateInputValue(mediator.left_at),
+              leave_reason: mediator.leave_reason ?? "",
             }}
           />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="mb-1 font-bold text-text-strong">Recherche et attestation</h2>
+          <p className="mb-3 text-xs text-text-muted">
+            Le consentement recherche ne se donne et ne se retire que depuis le compte du médiateur
+            lui-même (écran « Mon parcours ») — lecture seule ici.
+          </p>
+          <dl className="space-y-3 text-sm">
+            <Row
+              label="Consentement recherche"
+              value={
+                mediator.research_consent_at && !mediator.research_withdrawn_at
+                  ? `Donné le ${formatDate(mediator.research_consent_at)}`
+                  : mediator.research_withdrawn_at
+                    ? `Retiré le ${formatDate(mediator.research_withdrawn_at)}`
+                    : "Non donné"
+              }
+            />
+            <Row
+              label="Attestation d'heures"
+              value={
+                mediator.certificate_status === "genere"
+                  ? `Générée le ${formatDate(mediator.certificate_issued_at)}`
+                  : "Pas encore générée"
+              }
+            />
+          </dl>
+          <Link
+            href={`/mediateurs/${id}/attestation`}
+            className="mt-3 block rounded-full border border-dashed border-border bg-card-alt px-4 py-2 text-center text-sm font-bold text-bomoi-red"
+          >
+            Voir l&apos;attestation
+          </Link>
         </div>
 
         {isAdmin && (

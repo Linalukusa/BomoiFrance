@@ -15,6 +15,9 @@ export const mediatorSchema = z.object({
   status: z.enum(STATUS_VALUES, { message: "Statut invalide." }),
   availability: z.string().optional(),
   languages: z.string().optional(),
+  joined_at: z.string().optional(),
+  left_at: z.string().optional(),
+  leave_reason: z.string().max(500, "500 caractères maximum.").optional(),
 });
 
 export type MediatorInput = z.infer<typeof mediatorSchema>;

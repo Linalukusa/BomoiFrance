@@ -6,6 +6,7 @@ import { acceptOnboarding } from "./actions";
 export function OnboardingForm({ error }: { error?: string }) {
   const [charterAccepted, setCharterAccepted] = useState(false);
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [researchConsent, setResearchConsent] = useState(false);
 
   return (
     <form action={acceptOnboarding} className="space-y-6">
@@ -59,6 +60,27 @@ export function OnboardingForm({ error }: { error?: string }) {
           />
           J&apos;ai lu et j&apos;accepte les conditions de traitement des
           données personnelles.
+        </label>
+      </section>
+
+      <section className="rounded-xl bg-card-alt p-4">
+        <h2 className="mb-2 font-bold text-text-strong">Participer à la recherche (facultatif)</h2>
+        <p className="mb-4 text-sm leading-relaxed text-text-secondary">
+          BOMOI collabore avec iCOMMS (Université du Cap) pour étudier comment cet outil numérique est
+          utilisé par les médiateurs — jamais pour évaluer vos actions de médiation elles-mêmes. Ce
+          consentement est distinct de celui ci-dessus, entièrement facultatif, et ne conditionne
+          jamais l&apos;accès à l&apos;application. Vous pourrez le donner plus tard ou le retirer à
+          tout moment depuis l&apos;écran « Mon parcours ».
+        </p>
+        <label className="flex items-start gap-2 text-sm text-text-strong">
+          <input
+            type="checkbox"
+            name="research_consent"
+            checked={researchConsent}
+            onChange={(event) => setResearchConsent(event.target.checked)}
+            className="mt-0.5 h-4 w-4"
+          />
+          J&apos;accepte de participer à la recherche sur l&apos;usage de cet outil.
         </label>
       </section>
 

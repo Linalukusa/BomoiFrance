@@ -65,6 +65,9 @@ export async function updateMediator(mediatorId: string, formData: FormData) {
       status: parsed.data.status,
       availability: parsed.data.availability || null,
       languages,
+      joined_at: parsed.data.joined_at || null,
+      left_at: parsed.data.left_at || null,
+      leave_reason: parsed.data.leave_reason || null,
     })
     .eq("id", mediatorId);
 

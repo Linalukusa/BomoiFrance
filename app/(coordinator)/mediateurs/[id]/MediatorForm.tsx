@@ -12,6 +12,9 @@ export type MediatorFormInitialValues = {
   status: string;
   availability: string;
   languages: string;
+  joined_at: string;
+  left_at: string;
+  leave_reason: string;
 };
 
 export function MediatorForm({
@@ -27,6 +30,9 @@ export function MediatorForm({
   const [status, setStatus] = useState(initialValues.status);
   const [availability, setAvailability] = useState(initialValues.availability);
   const [languages, setLanguages] = useState(initialValues.languages);
+  const [joinedAt, setJoinedAt] = useState(initialValues.joined_at);
+  const [leftAt, setLeftAt] = useState(initialValues.left_at);
+  const [leaveReason, setLeaveReason] = useState(initialValues.leave_reason);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -37,6 +43,9 @@ export function MediatorForm({
       status,
       availability,
       languages,
+      joined_at: joinedAt,
+      left_at: leftAt,
+      leave_reason: leaveReason,
     });
 
     if (!parsed.success) {
@@ -148,6 +157,51 @@ export function MediatorForm({
           placeholder="Ex. lundis et mercredis après-midi"
           className="w-full rounded-lg border border-border bg-card px-4 py-3 text-text-strong placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-bomoi-red"
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="joined_at" className="mb-1 block text-sm font-medium text-text-strong">
+            Date d&apos;engagement (facultatif)
+          </label>
+          <input
+            id="joined_at"
+            name="joined_at"
+            type="date"
+            value={joinedAt}
+            onChange={(event) => setJoinedAt(event.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-text-strong focus:outline-none focus:ring-2 focus:ring-bomoi-red"
+          />
+        </div>
+        <div>
+          <label htmlFor="left_at" className="mb-1 block text-sm font-medium text-text-strong">
+            Date de départ (facultatif)
+          </label>
+          <input
+            id="left_at"
+            name="left_at"
+            type="date"
+            value={leftAt}
+            onChange={(event) => setLeftAt(event.target.value)}
+            className="w-full rounded-lg border border-border bg-card px-4 py-3 text-text-strong focus:outline-none focus:ring-2 focus:ring-bomoi-red"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor="leave_reason" className="mb-1 block text-sm font-medium text-text-strong">
+          Motif de départ (facultatif)
+        </label>
+        <textarea
+          id="leave_reason"
+          name="leave_reason"
+          rows={2}
+          maxLength={500}
+          value={leaveReason}
+          onChange={(event) => setLeaveReason(event.target.value)}
+          className="w-full rounded-lg border border-border bg-card px-4 py-3 text-text-strong focus:outline-none focus:ring-2 focus:ring-bomoi-red"
+        />
+        <p className="mt-1 text-xs text-text-muted">Jamais de nom, de contact ni de détail de santé.</p>
       </div>
 
       {error && <p className="text-sm text-bomoi-red">{error}</p>}

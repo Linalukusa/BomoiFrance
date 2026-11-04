@@ -30,6 +30,7 @@ type MediatorDetail = {
   joined_at: string | null;
   left_at: string | null;
   leave_reason: string | null;
+  anonymized_at: string | null;
   research_consent_at: string | null;
   research_withdrawn_at: string | null;
   certificate_status: string;
@@ -67,7 +68,7 @@ export default async function MediateurDetailPage({
   const { data: mediatorRow } = await supabase
     .from("mediators")
     .select(
-      "id, first_name, last_name, university, languages, status, availability, charter_accepted_at, privacy_accepted_at, created_at, joined_at, left_at, leave_reason, research_consent_at, research_withdrawn_at, certificate_status, certificate_issued_at, profiles(role)",
+      "id, first_name, last_name, university, languages, status, availability, charter_accepted_at, privacy_accepted_at, created_at, joined_at, left_at, leave_reason, anonymized_at, research_consent_at, research_withdrawn_at, certificate_status, certificate_issued_at, profiles(role)",
     )
     .eq("id", id)
     .single();
@@ -98,6 +99,13 @@ export default async function MediateurDetailPage({
 
         {saved === "1" && <SuccessBanner message="Enregistré avec succès." />}
         {error && <p className="text-sm text-bomoi-red">{decodeURIComponent(error)}</p>}
+
+        {mediator.anonymized_at && (
+          <p className="rounded-lg bg-card-alt p-3 text-sm text-text-muted">
+            Compte anonymisé le {formatDate(mediator.anonymized_at)} — prénom/nom d&apos;origine effacés,
+            à ne pas resaisir.
+          </p>
+        )}
 
         <dl className="space-y-3 rounded-xl border border-border bg-card p-4 text-sm">
           <Row label="Charte acceptée" value={formatDate(mediator.charter_accepted_at)} />

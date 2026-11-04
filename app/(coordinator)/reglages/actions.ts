@@ -36,3 +36,31 @@ export async function updateAppSettings(formData: FormData) {
 
   redirect("/reglages?saved=1");
 }
+
+/**
+ * purge_inactive_mediators (0013) revérifie déjà is_admin() côté base.
+ */
+export async function runMediatorPurge() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+
+  if (profile?.role !== "admin") {
+    redirect("/dashboard?error=non_autorise");
+  }
+
+  const { data: count, error } = await supabase.rpc("purge_inactive_mediators");
+
+  if (error) {
+    redirect(`/reglages?error=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect(`/reglages?purged=${count}`);
+}

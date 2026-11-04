@@ -221,8 +221,9 @@ Aucune donnée à caractère personnel n'est collectée sur les personnes sensib
 
 | Donnée | Durée | Mécanisme |
 |---|---|---|
-| Activités, freins, orientations | Durée du programme + 3 ans, puis anonymisation ou suppression | Requête de purge planifiable sur `created_at` |
-| Comptes médiateurs inactifs | Anonymisation 12 mois après la fin de l'engagement | Tâche planifiée basée sur `mediators.status = 'inactif'` + date de passage à ce statut |
+| Activités, freins, orientations, idées reçues (V2) | Durée du programme + 3 ans, puis anonymisation ou suppression | **Encore à écrire** : dépend d'une date de fin de programme non communiquée par BOMOI — une requête qui purgerait sur une date inventée serait dangereuse (voir `SECURITY.md` §6) |
+| Comptes médiateurs inactifs | Anonymisation 12 mois après le passage à `left_at` | **Implémenté** (V2, Étape 16) : fonction admin `purge_inactive_mediators()`, déclenchée manuellement depuis `/reglages` — jamais automatique |
+| Médiathèque, observations de terrain, sessions de formation (V2) | Alignée sur les activités (durée du programme + 3 ans) | Même requête de purge à écrire que la ligne ci-dessus, une fois la date connue |
 | Journaux techniques (logs applicatifs/infrastructure) | 12 mois | Configuration Vercel/Supabase |
 | `audit_logs` | Alignée sur la durée du programme + 3 ans (traçabilité des suppressions) | Purge manuelle admin |
 
@@ -246,3 +247,15 @@ Affiché intégralement à l'écran d'onboarding, avec case à cocher horodatée
 - Support hors-ligne basique : file d'attente locale des formulaires (IndexedDB), bandeau « Hors ligne — sera synchronisé dès que possible », synchronisation automatique au retour réseau.
 - Interface entièrement en français.
 - Accessibilité de base : contrastes suffisants (vérifiés sur la palette ci-dessus), cibles tactiles ≥ 44px (steppers, chips), champs numériques en steppers plutôt que clavier natif.
+
+## 9. Addendum V2 (Étapes 10 à 16)
+
+Ce document reste le cahier des charges validé pour la V1 ; cette section résume, sans le réécrire, ce que la V2 a ajouté par-dessus — le détail étape par étape vit dans `DEVELOPMENT_PLAN.md`.
+
+- **Flux d'action partagée** : une action se démarre, se compte sur le terrain (auto-save à chaque tap), puis se clôture (contexte, supports, idées reçues) en trois statuts (`en_cours` → `a_completer` → `cloturee`). Plusieurs médiateurs peuvent démarrer/compter la même action sans double comptage, chacun crédité en entier des heures de l'action (pas de partage proportionnel).
+- **Parcours médiateur** (`/parcours`, remplace « Mes stats » dans la navigation basse) : dates d'engagement, heures cumulées (terrain + formation), consentement recherche distinct du consentement RGPD d'onboarding — facultatif, révocable à tout moment par le médiateur lui-même uniquement. Attestation d'heures signée BOMOI/EFS, générée et imprimée uniquement par un coordinateur — un médiateur ne peut jamais la produire lui-même.
+- **Outils coordinateur** : médiathèque (traçabilité des photos/vidéos pour le projet documentaire, jamais le fichier lui-même), observations de terrain (notes qualitatives internes, jamais un outil de classement entre médiateurs), sessions de formation et présence, écran de gestion des collectes EFS (explicitement reporté depuis l'Étape 9), nouveautés de l'outil (transparence envers les médiateurs), réglages admin.
+- **Recherche iCOMMS (Université du Cap)** : étudie l'adoption de l'outil par les médiateurs, jamais leurs actions de médiation elles-mêmes. Export CSV pseudonymisé (code de recherche à la place de l'identité), réservé à l'admin, excluant systématiquement tout médiateur sans consentement recherche actif.
+- **En attente, volontairement non construit** :
+  - Questionnaires de recherche (échelles + questions ouvertes + usabilité) et section « Journal de bord » de l'écran de clôture : le texte exact doit être validé par le comité d'éthique UCT/iCOMMS. BOMOI a recruté une personne chargée de l'analyse des données qui portera la conception de cet instrument — reste une étape séparée du plan, à ouvrir quand ce texte sera prêt.
+  - Collecte de données démographiques anonymisées sur les personnes sensibilisées (intention confirmée par BOMOI le 04/11/2026, catégories et mécanisme de collecte pas encore définis) : à concevoir avec une attention particulière à la règle absolue du §6.2 ci-dessus et à `SECURITY.md` §1 — même anonymisée, une combinaison de catégories démographiques trop fine sur une action à faible effectif peut redevenir identifiante. À traiter comme une étape dédiée, pas comme un ajout de champ au formulaire existant.

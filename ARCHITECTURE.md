@@ -11,7 +11,7 @@ Navigateur (mobile médiateur / desktop coordinateur)
    Next.js (Vercel) ── App Router, Server Components + Server Actions
         │  supabase-js (RLS appliquée systématiquement, jamais de bypass côté client)
         ▼
-   Supabase (Postgres + Auth + Storage non utilisé en V1)
+   Supabase (Postgres + Auth + Storage non utilisé — médiathèque V2 en lien externe, jamais le fichier)
 ```
 
 Aucun backend séparé. Les seules opérations privilégiées (invitation d'un médiateur, changement de rôle, incrément de compteur de clic EFS) passent par des **Next.js Route Handlers / Server Actions** utilisant la clé `service_role` côté serveur uniquement (jamais exposée au client), qui elles-mêmes appellent des fonctions Postgres `SECURITY DEFINER` restreintes.
@@ -28,7 +28,7 @@ Aucun backend séparé. Les seules opérations privilégiées (invitation d'un m
 
 ## 3. Structure du projet
 
-État réel après l'Étape 3 (les entrées marquées « à venir » restent planifiées telles quelles pour les étapes suivantes) :
+État réel après l'Étape 15 (V2). Le détail de chaque écran V2 est documenté au fil de l'eau dans `DEVELOPMENT_PLAN.md` ; cet arbre donne la vue d'ensemble :
 
 ```
 proxy.ts                           # ex-middleware.ts (renommage Next.js 16) : session + gating
@@ -36,105 +36,85 @@ app/
   page.tsx                         # filet de sécurité, redirige toujours vers /login
   (auth)/
     login/
-      page.tsx                     # wrapper serveur (lit ?error=)
+      page.tsx
       LoginForm.tsx                 # 2 étapes client : e-mail → code à 6 chiffres
     onboarding/
-      page.tsx                     # charte + RGPD, bloque tant que non accepté
+      page.tsx                     # charte + RGPD (obligatoires) + consentement recherche (3e case, facultative, V2)
       OnboardingForm.tsx
-      actions.ts                   # Server Action, valide et horodate côté serveur
+      actions.ts
   auth/
     signout/route.ts
   (mediator)/
-    layout.tsx                     # + BottomNav (3 onglets)
+    layout.tsx                     # + BottomNav (3 onglets : Accueil / Actions / Mon parcours)
     BottomNav.tsx
-    accueil/page.tsx               # actions rapides + activité récente réelle
+    accueil/page.tsx               # sections "En cours" / "À compléter" / activité récente (cloturee uniquement)
     activites/
-      page.tsx                     # liste, état vide, filtre par date, carte lien EFS à partager
-      nouveau/
-        page.tsx
-        actions.ts                 # Server Action createActivity
+      page.tsx                     # liste (créateur ou participant), badge de statut
+      nouveau/{page,actions,StartActivityForm}.tsx   # "Démarrer une action" (V2) : RPC start_activity
       [id]/
-        page.tsx                   # détail, bascule en édition via ?edit=1
-        actions.ts                 # updateActivity, archiveActivity (soft delete)
-        ArchiveButton.tsx
-      ActivityForm.tsx             # partagé création/édition
-      Stepper.tsx                  # bornes min/max — état invalide jamais atteignable depuis l'UI
+        page.tsx                   # détail, status-aware (en_cours → /terrain, boutons /cloture selon statut)
+        actions.ts                 # archiveActivity (soft delete, créateur uniquement)
+        [id]/terrain/{page,TerrainCounters,actions}.tsx   # compteurs +/- auto-save, freins par occurrence
+        [id]/cloture/{page,ClotureForm,actions}.tsx       # contexte/supports/idées reçues, auto-save champ par champ
+      Stepper.tsx                  # bornes min/max, 44px minimum
       ChipSelect.tsx
       EfsLinkCard.tsx
-      PendingOrientations.tsx      # brouillons d'orientation en mémoire, ajoutés dans le flux "Nouvelle activité"
-    orientations/
-      RadioList.tsx                # sélection unique du statut de suivi (lignes, pas des chips) — utilisé par PendingOrientations ; pas de route ici (pas de page.tsx), plus d'écran dédié Orientation
-    freins/
-      page.tsx                     # liste groupée par activité (chips de freins + note)
-      nouveau/
-        page.tsx                   # accès autonome (menu déroulant d'activité) ou ?activity_id= depuis le détail
-        actions.ts                 # Server Action createBarrierEntry (upsert multi-lignes, ignoreDuplicates)
-      BarrierForm.tsx
-      ChipMultiSelect.tsx          # sélection multiple par puces (jamais de radio, PRD §4.4)
-    statistiques/page.tsx          # "Mes statistiques" — données strictement personnelles, jamais de comparaison
+    parcours/{page,actions}.tsx    # dates d'engagement, heures cumulées, consentement recherche révocable, attestation (lecture)
+    statistiques/page.tsx          # "Mes statistiques" (indicateurs d'impact personnels, PRD §4.7) — plus dans la nav basse, lien depuis /parcours
   (coordinator)/
     layout.tsx
-    dashboard/page.tsx             # 5 sections (Objectifs → Fiabilité), cf. §7
+    dashboard/page.tsx             # 5 sections (Objectifs → Fiabilité) + rangée de liens vers les écrans ci-dessous
     mediateurs/
-      nouveau/
-        page.tsx                   # invitation (formulaire)
-        actions.ts                 # Server Action service_role
-      page.tsx                     # liste, recherche simple, StatusBadge.tsx
+      nouveau/{page,actions}.tsx   # invitation (service_role)
+      page.tsx
       StatusBadge.tsx
       [id]/
-        page.tsx                   # fiche : édition hors rôle + (admin) rôle/suppression définitive
-        actions.ts                 # updateMediator (RLS), changeRole (RPC set_user_role), deleteMediatorAccount (service_role)
+        page.tsx                   # fiche : édition hors rôle + dates de parcours + bloc recherche/attestation (lecture) + (admin) rôle/suppression
+        actions.ts
         MediatorForm.tsx
-        RoleSelector.tsx            # admin uniquement
-        DeleteAccountButton.tsx     # admin uniquement, double confirmation "SUPPRIMER"
+        RoleSelector.tsx / DeleteAccountButton.tsx   # admin uniquement
+        attestation/{page,actions,PrintButton}.tsx   # imprimable, coordinateur/admin uniquement — jamais le médiateur
+    medias/{page,actions}.tsx      # médiathèque (traçabilité photo/vidéo, jamais le fichier)
+    observations/{page,actions}.tsx # notes qualitatives internes, jamais visibles par le médiateur observé
+    sessions/{page,actions,[id]/page}.tsx  # formations + présence (remplace entièrement la liste à chaque sauvegarde)
+    collectes/{page,actions,[id]/page}.tsx # résultats officiels EFS, saisie admin uniquement
+    reglages/{page,actions}.tsx    # admin : bascule recherche, export CSV, anonymisation des comptes inactifs
+  changements/{page,actions}.tsx   # SEULE page hors des deux groupes ci-dessus — lue par tous, écrite par coordinateur/admin (cf. §4ter)
   SignOutButton.tsx
-  r/[slug]/route.ts                # redirection courte EFS publique, cf. §4bis
+  r/[slug]/route.ts                # redirection courte EFS publique, cf. §6
   api/
     health/route.ts
+    export/[dataset]/route.ts      # CSV pseudonymisé, admin uniquement, cf. §4quater
 components/
-  dashboard/
-    StatCard.tsx                   # carte chiffre + infobulle optionnelle
-    ProgressBar.tsx                # barre rouge fine sur piste grise + % (freins, campus)
-    MonthlyBarChart.tsx            # barres mensuelles, 6 derniers mois
-    InfoTooltip.tsx                # infobulle native (title), définitions verrouillées
-  forms/
-    SubmitButton.tsx               # useFormStatus — doit être un enfant du <form>, jamais le composant qui le rend
-    SuccessBanner.tsx              # confirmation "Enregistré avec succès" (?saved=1), nettoie l'URL au montage
+  dashboard/{StatCard,ProgressBar,MonthlyBarChart,InfoTooltip}.tsx
+  forms/{SubmitButton,SuccessBanner,ChipMultiSelect}.tsx
 lib/
-  supabase/
-    client.ts                      # client navigateur (anon key, RLS)
-    server.ts                      # client serveur (session utilisateur, RLS)
-    admin.ts                       # client service_role, usage strictement serveur, jamais importé côté client
-    middleware.ts                  # updateSession(), logique de gating utilisée par proxy.ts
-  site-url.ts                      # URL publique du site pour les redirections e-mail
-  config/
-    options.ts                     # listes fixes non stockées en base (campus, type/durée/support d'activité)
-    definitions.ts                 # définitions verrouillées PRD §5, reprises telles quelles dans les infobulles
-    objectives.ts                  # objectifs PIEED fixes (500 sensibilisés, 60-80 nouveaux donneurs)
-  dashboard/
-    months.ts                      # helper 6 derniers mois, partagé stats médiateur + dashboard coordinateur
-  validation/
-    activity.ts                    # schéma Zod partagé client/serveur, mêmes règles que les CHECK de la DB
-    orientation.ts
-    barrier.ts
-    mediator.ts                    # édition hors rôle uniquement — aucun champ role
-  offline/                         # à venir Étape 6 (non démarrée à la demande de BOMOI) : file IndexedDB + logique de sync
+  supabase/{client,server,admin,middleware}.ts
+  site-url.ts
+  config/{options,definitions,objectives}.ts   # options.ts porte aussi CATEGORY_VERSION (V2)
+  dashboard/months.ts
+  validation/{activity,orientation,barrier,mediator}.ts
+  offline/                         # à venir Étape 17 (PWA) — pas démarré
 supabase/
   migrations/
-    0001_init.sql
-    0002_grants.sql                # restaure les privilèges Postgres perdus lors d'un incident de récupération
-    0003_activity_with_orientations.sql  # RPC atomique création activité + orientations en une transaction
-    0004_increment_link_click.sql  # RPC SECURITY DEFINER, incrément atomique du compteur de clics EFS
-    0005_fix_function_grants.sql   # révoque anon/authenticated de deux fonctions que 0002 leur avait rouvertes par erreur
-    0006_dashboard_views.sql       # v_dashboard_impact/barriers/campus, v_reliability — security_invoker + revoke anon
+    0001_init.sql … 0006_dashboard_views.sql      # V1, cf. historique git pour le détail
+    0007_v2_activity_flow.sql       # statuts, activity_participants, activity_misconceptions, RPC démarrer/compter/terminer/clôturer
+    0008_peer_mediator_picker.sql   # list_active_mediators() — élévation de privilège contrôlée (SECURITY.md §3)
+    0009_misconceptions_participant_rls.sql
+    0010_mediator_journey.sql       # app_settings, dates de parcours, consentement recherche, sessions, v_mediator_hours
+    0011_coordinator_tools.sql      # media_log, field_observations, tool_changelog
+    0012_usage_metrics.sql          # v_usage_metrics (adoption de l'outil, jamais la performance de médiation)
+    0013_retention.sql              # purge_inactive_mediators()
 ```
 
 ## 3bis. Listes fixes côté configuration (pas de table dédiée)
 
-Deux listes sont volontairement gérées comme des constantes applicatives (`lib/config/options.ts`) plutôt que comme des tables Supabase, pour rester alignées avec le principe de minimalisme des 9 tables :
+Plusieurs listes sont volontairement gérées comme des constantes applicatives (`lib/config/options.ts`) plutôt que comme des tables Supabase, pour rester alignées avec le principe de minimalisme déjà appliqué en V1 — chacune synchronisée avec la contrainte `CHECK` correspondante :
 
 - **Campus/université** (champ `activities.campus`, texte libre en base) : liste suggérée à l'UI (Toulouse III – Paul Sabatier, Toulouse Capitole, Toulouse – Jean Jaurès, INSA Toulouse, Toulouse INP), modifiable sans migration si BOMOI ajoute un campus partenaire.
-- **Support utilisé** (champ `activities.support_used`, texte libre en base) : liste verrouillée avec BOMOI — flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre (chips + champ libre si « autre »).
+- **Support utilisé** (`activities.supports_used`, tableau en base depuis la V2) : liste verrouillée avec BOMOI — flyer, affiche, brochure, vidéo, carte-réponse, lien EFS, aucun, autre (chips multi-sélection + champ libre si « autre »).
+- **Période / public / contexte événementiel** (V2, écran de clôture) : `PERIOD_OPTIONS`/`AUDIENCE_OPTIONS`/`EVENT_CONTEXT_OPTIONS`, synchronisées avec les contraintes `CHECK` de `activities.period`/`audience`/`event_context` (`0007_v2_activity_flow.sql`).
+- `CATEGORY_VERSION` (V2) : pas une liste mais la version courante de l'ensemble de ces listes, enregistrée sur chaque nouvelle ligne catégorisée (`activities.category_version`, `activity_barriers.category_version`) pour rester interprétable si une future révision change le sens des valeurs déjà enregistrées.
 
 ## 4. Authentification et gestion des comptes
 
@@ -148,6 +128,26 @@ Deux listes sont volontairement gérées comme des constantes applicatives (`lib
   - Modèles d'e-mail Supabase (Magic Link, Invite user) : doivent afficher `{{ .Token }}` en clair dans le corps (voir README.md « Authentification »).
 - Première connexion → redirection forcée vers `/onboarding` tant que `mediators.charter_accepted_at` et `mediators.privacy_accepted_at` sont `NULL`. Le proxy (`proxy.ts`) vérifie cet état sur chaque route protégée.
 - Changement de rôle : jamais via une simple mise à jour de table côté client. Passe exclusivement par la Server Action `set-role`, réservée à `admin`, qui appelle une fonction Postgres `SECURITY DEFINER` (voir `SECURITY.md`).
+
+## 4bis. Flux d'action partagée (V2)
+
+- Trois statuts (`activities.status` : `en_cours` → `a_completer` → `cloturee`) portés par trois RPC `SECURITY INVOKER` (`start_activity`, `end_activity`, `close_activity`, `supabase/migrations/0007_v2_activity_flow.sql`) plutôt que par des `UPDATE` directs — chacune ne touche que les colonnes pertinentes à la transition, jamais un champ arbitraire fourni par le client.
+- Partage entre médiateurs : table `activity_participants` (le créateur y est inséré automatiquement par `start_activity`). Un co-participant peut compter/clôturer la même action sans la dupliquer ; chacun est crédité en entier des heures de l'action (`v_mediator_hours`), jamais une division proportionnelle. `guard_activity_update` (trigger) empêche la réassignation du créateur et réserve l'archivage au créateur — RLS seule ne peut pas comparer `OLD`/`NEW` sur une colonne différente de celle filtrée par la condition.
+- Écran terrain (`TerrainCounters.tsx`) : chaque tap appelle directement une Server Action (`increment_activity_counter`/`increment_barrier`, pas de `<form>`) avec mise à jour optimiste côté client puis réconciliation sur les valeurs autoritaires renvoyées par la RPC ; file de réessai en mémoire en cas d'échec réseau — jamais un tap perdu silencieusement. Les freins comptent désormais par occurrence (`activity_barriers.occurrences`), plus par simple présence/absence.
+- Écran de clôture (`ClotureForm.tsx`) : sauvegarde automatique champ par champ (`updateActivityField`, allowlist fermée de colonnes), jamais de bouton « Enregistrer » avant le bouton final de clôture — ne bloque jamais sur un champ facultatif vide.
+- Chaque donnée catégorisée porte `category_version` (constante `CATEGORY_VERSION` dans `lib/config/options.ts`) pour rester interprétable si les listes fermées changent de sens dans une future version.
+
+## 4ter. Parcours médiateur et outils coordinateur (V2)
+
+- `mediators` porte depuis `0010_mediator_journey.sql` les dates d'engagement, le consentement recherche révocable et le statut d'attestation. `guard_mediator_journey_fields` (trigger) impose, colonne par colonne, qui peut écrire quoi : le consentement recherche uniquement par le médiateur lui-même (jamais un coordinateur — un consentement donné par un tiers serait invalide), l'attestation et les dates d'engagement uniquement par coordinateur/admin (jamais le médiateur, qui ne peut sinon s'auto-délivrer une attestation) — même angle mort RLS que `guard_activity_update` ci-dessus.
+- `app_settings` (ligne unique) + fonction `is_research_collection_enabled()` : un médiateur doit savoir si la collecte de recherche est active sans jamais avoir d'accès en lecture à la table elle-même (4e élévation de privilège contrôlée, `SECURITY.md` §3).
+- Outils coordinateur (`media_log`, `field_observations`, `tool_changelog`, `sessions`/`session_attendance`, écran de gestion des collectes EFS) : tables indépendantes, RLS coordinateur/admin sauf `tool_changelog` et `sessions` (catalogues sans donnée personnelle, lisibles par tout authentifié).
+- **`app/changements/page.tsx` est la seule page du projet placée hors des deux groupes `(mediator)`/`(coordinator)`** : `tool_changelog` doit être lisible par un médiateur (transparence sur l'évolution de l'outil) mais écrit seulement par coordinateur/admin — aucun des deux groupes de routes, chacun réservé par le proxy à un seul camp, ne pouvait porter cette double exigence. La page fait elle-même la distinction lecture/écriture selon le rôle.
+
+## 4quater. Export de recherche pseudonymisé (V2)
+
+- `app/api/export/[dataset]/route.ts` (dataset `usage` pour l'instant) : admin uniquement, vérifié dans la route elle-même (pas seulement par le proxy, qui ne restreint pas `/api/export/*`). Combine la vue `v_usage_metrics` (adoption de l'outil — fréquence d'usage des écrans, jamais la performance de médiation, `0012_usage_metrics.sql`) et `v_mediator_hours`.
+- Jamais `mediator_id` ni nom dans la sortie : remplacés par `mediators.research_code` (pseudonyme opaque, immuable une fois généré). Filtre explicite sur le consentement recherche actif, appliqué côté application après la lecture (pas seulement déduit d'`app_settings.research_collection_enabled`) — un médiateur non consentant n'apparaît jamais dans l'export, même si ses métriques existent et restent visibles par l'admin dans l'application elle-même.
 
 ## 5. Support hors-ligne
 
@@ -171,7 +171,9 @@ Objectif : un médiateur sans réseau (sous-sol, hall universitaire) peut rempli
 
 ## 7. Dashboard coordinateur/admin — calculs
 
-Toutes les requêtes d'agrégation filtrent systématiquement `archived_at IS NULL`. Exposé via 4 **vues Postgres** dédiées (`v_dashboard_impact`, `v_dashboard_barriers`, `v_dashboard_campus`, `v_reliability`, `supabase/migrations/0006_dashboard_views.sql`) qui encapsulent ce filtre une fois pour toutes plutôt que de le répéter dans chaque requête applicative — réduit le risque d'oubli et simplifie l'audit.
+Toutes les requêtes d'agrégation filtrent systématiquement `archived_at IS NULL`. Exposé via 4 **vues Postgres** dédiées (`v_dashboard_impact`, `v_dashboard_barriers`, `v_dashboard_campus`, `v_reliability`, `supabase/migrations/0006_dashboard_views.sql`) qui encapsulent ce filtre une fois pour toutes plutôt que de le répéter dans chaque requête applicative — réduit le risque d'oubli et simplifie l'audit. Mises à jour en V2 (`0007_v2_activity_flow.sql`) pour exclure aussi les actions `en_cours` (chiffres partiels tant qu'une action n'est pas terminée) et pour compter les orientations V1 (table `orientations`) et V2 (`activities.orientations_in_person`/`orientations_remote`) sans double emploi.
+
+> **Écart connu, non corrigé** : `app/(coordinator)/dashboard/page.tsx` (courbe de progression mensuelle) et `app/(mediator)/statistiques/page.tsx` interrogent directement `activities` sans filtrer `status <> 'en_cours'`, contrairement aux vues `v_dashboard_*` ci-dessus — repéré à l'Étape 11, toujours pas traité (hors périmètre de chaque étape concernée jusqu'ici). Une action en cours avec des chiffres partiels peut donc apparaître dans ces deux courbes avant d'être terminée.
 
 - « Freins les plus fréquents » : `COUNT(*)` sur `activity_barriers` non archivées, groupé par `barrier_id`, jamais `COUNT(DISTINCT activity_id)` — cohérent avec la règle de comptage par occurrence explicitée dans le PRD.
 - « Répartition par campus » : `COUNT(*)` sur `activities` non archivées groupé par `campus`.
@@ -194,3 +196,10 @@ Toutes les requêtes d'agrégation filtrent systématiquement `archived_at IS NU
 ## 10. Ce que ce document ne couvre pas encore
 
 Le détail des composants UI (props, variantes) et le plan de test seront affinés au moment de l'implémentation de chaque écran, en suivant fidèlement les maquettes. Aucune page ne sera codée avant validation de ce document, du schéma (`supabase/migrations/0001_init.sql`) et de `SECURITY.md`.
+
+## 11. Rétention et purge (V2, Étape 16)
+
+Détail complet dans `SECURITY.md` §6 et les durées dans `PRODUCT_REQUIREMENTS.md` §6.3 — résumé technique :
+
+- Seule opération implémentée : `purge_inactive_mediators()` (`0013_retention.sql`), anonymise un compte médiateur inactif depuis plus de 12 mois (`mediators.left_at`). `SECURITY DEFINER`, revérifie `is_admin()` en interne, déclenchable manuellement depuis `/reglages` (jamais planifiée). Pose `mediators.anonymized_at` ; ne touche jamais `research_code` (pseudonyme opaque, pas une donnée identifiante) ni les lignes `activities`/`orientations` déjà liées (déjà anonymes par construction).
+- La purge des données de terrain après « durée du programme + 3 ans » reste à écrire — bloquée sur une date de fin de programme que BOMOI n'a pas encore communiquée.

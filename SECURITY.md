@@ -6,25 +6,35 @@ Ce document complète la section RGPD de `PRODUCT_REQUIREMENTS.md` (§6) avec le
 
 Aucune donnée permettant d'identifier une personne sensibilisée ou orientée n'existe dans le système, à aucun niveau (schéma, code, logs, sauvegardes). Ce n'est pas une politique de restriction d'accès à des données sensibles — c'est une absence structurelle de la donnée elle-même. Toute proposition future d'ajouter un champ nom/contact/identifiant sur `orientations` ou toute table liée à une personne sensibilisée doit être refusée par défaut, y compris « en option » ou « pour plus tard ».
 
+> **En attente (confirmé par BOMOI le 04/11/2026, pas encore conçu)** : les médiateurs collecteront à l'avenir certaines données démographiques sur les personnes sensibilisées, anonymisées. Ce principe reste intact et s'applique pleinement à cette future fonctionnalité — « anonymisé » doit vouloir dire des **compteurs agrégés par catégorie** (sur le modèle d'`activities.orientations_in_person`/`orientations_remote`, jamais une ligne par personne), jamais une collecte individuelle même sans nom. Point d'attention supplémentaire propre aux données démographiques : une combinaison de catégories trop fine (ex. âge + genre + université sur une action à 2 personnes) peut redevenir quasi-identifiante même sous forme de compteurs — la granularité des catégories devra être revue avant toute implémentation, pas seulement leur absence de nom.
+
 ## 2. Row Level Security — matrice par table et par rôle
 
-RLS est activée sur les 9 tables dès `0001_init.sql`. Aucune table exposée à PostgREST/supabase-js ne doit jamais avoir RLS désactivée.
+RLS est activée sur les 17 tables (9 en V1, 8 ajoutées en V2) dès leur propre migration. Aucune table exposée à PostgREST/supabase-js ne doit jamais avoir RLS désactivée.
 
 | Table | mediator | coordinator | admin |
 |---|---|---|---|
 | `profiles` | SELECT/UPDATE ligne propre (rôle non modifiable) | SELECT toutes | SELECT/UPDATE/DELETE toutes, rôle via `set_user_role()` uniquement |
-| `mediators` | SELECT/UPDATE ligne propre | SELECT/INSERT/UPDATE toutes | + DELETE définitif |
-| `activities` | SELECT/INSERT/UPDATE (dont archivage) ligne propre uniquement | SELECT toutes (lecture seule) | + DELETE définitif |
-| `orientations` | idem, jamais de champ identifiant | SELECT toutes | + DELETE définitif |
+| `mediators` | SELECT/UPDATE ligne propre (sauf colonnes du parcours, cf. point 4 ci-dessous) | SELECT/INSERT/UPDATE toutes (idem, sauf consentement recherche) | + DELETE définitif, `purge_inactive_mediators()` |
+| `activities` | SELECT/INSERT/UPDATE (dont archivage, créateur uniquement) — créateur OU participant depuis la V2 (`activity_participants`) | SELECT toutes (lecture seule) | + DELETE définitif |
+| `orientations` | idem V1, jamais de champ identifiant | SELECT toutes | + DELETE définitif |
 | `barriers` | SELECT (catalogue fixe) | SELECT | + gestion du catalogue |
-| `activity_barriers` | SELECT/INSERT/UPDATE liés à ses activités | SELECT toutes | + DELETE définitif |
+| `activity_barriers` | SELECT/INSERT/UPDATE liés à ses activités (créateur OU participant depuis la V2) | SELECT toutes | + DELETE définitif |
+| `activity_participants` (V2) | SELECT ligne propre ou action à laquelle il participe ; INSERT réservé à `start_activity()` (créateur uniquement) | SELECT toutes | — |
+| `activity_misconceptions` (V2) | SELECT/INSERT/UPDATE (archivage) liés à son action, créateur OU participant | SELECT toutes | + DELETE définitif |
 | `link_clicks` | SELECT ligne propre ; écriture uniquement via RPC `get_or_create_efs_link` | SELECT toutes | + DELETE définitif |
-| `aggregate_collection_results` | SELECT (pour choisir la collecte dans le formulaire orientation) | SELECT | INSERT/UPDATE/DELETE (saisie officielle) |
+| `aggregate_collection_results` | SELECT (pour choisir la collecte dans le formulaire) | SELECT | INSERT/UPDATE/DELETE (saisie officielle) |
 | `audit_logs` | aucun accès | aucun accès (par défaut — activable si BOMOI le souhaite) | SELECT |
+| `app_settings` (V2) | aucun accès direct (fonction `is_research_collection_enabled()` dédiée) | SELECT | + UPDATE |
+| `sessions` (V2) | SELECT (catalogue, aucune donnée personnelle) | SELECT/INSERT/UPDATE | + DELETE |
+| `session_attendance` (V2) | SELECT ligne propre | SELECT/INSERT/UPDATE toutes | + DELETE |
+| `media_log` (V2) | aucun accès | SELECT/INSERT/UPDATE | + DELETE |
+| `field_observations` (V2) | aucun accès, y compris sur soi-même | SELECT/INSERT/UPDATE | + DELETE |
+| `tool_changelog` (V2) | SELECT (catalogue) | SELECT/INSERT/UPDATE | + DELETE |
 
-Aucun rôle applicatif (`mediator`/`coordinator`) ne dispose jamais d'une policy DELETE sur les tables de données de terrain : la suppression définitive est réservée à `admin`, et toute suppression déclenche un trigger `log_hard_delete` vers `audit_logs` avant la suppression effective (snapshot complet de la ligne dans `metadata`).
+Aucun rôle applicatif (`mediator`/`coordinator`) ne dispose jamais d'une policy DELETE sur les tables de données de terrain : la suppression définitive est réservée à `admin`, et toute suppression déclenche un trigger `log_hard_delete` vers `audit_logs` avant la suppression effective (snapshot complet de la ligne dans `metadata`) — ce trigger ne couvre que les 9 tables V1 ; les tables V2 n'ont pour l'instant pas cette journalisation automatique sur DELETE (aucune n'a encore eu besoin d'un DELETE réel en usage courant).
 
-> **V2** : la matrice ci-dessus reste la référence V1. Les tables ajoutées depuis (`activity_participants`, `activity_misconceptions`, et `activities`/`activity_barriers` désormais lisibles/modifiables par un participant en plus du créateur) sont documentées au fil des migrations `0007+` ; la checklist complète sera mise à jour en une seule passe à l'Étape 16 du plan de développement.
+> Le détail ligne à ligne de chaque policy V2 (noms exacts, conditions `using`/`with check`) reste dans sa migration d'origine (`0007` à `0012`) — cette matrice résume, elle ne remplace pas la lecture du SQL pour une revue de sécurité formelle.
 
 ## 3. Élévation de privilèges contrôlée
 
@@ -59,10 +69,10 @@ Un garde-fou complémentaire, distinct de l'élévation de privilèges ci-dessus
 
 ## 6. Rétention et purge
 
-Voir `PRODUCT_REQUIREMENTS.md` §6.3 pour les durées (à confirmer par BOMOI). Recommandations techniques :
+Voir `PRODUCT_REQUIREMENTS.md` §6.3 pour les durées (certaines encore à confirmer par BOMOI).
 
-- Les colonnes `created_at`/`archived_at`/`status` (mediators) permettent d'écrire dès maintenant des requêtes de purge (`DELETE ... WHERE created_at < now() - interval '...'`), packagées comme scripts SQL versionnés dans `supabase/migrations/` ou comme fonctions admin déclenchables manuellement — **pas d'automatisation silencieuse en V1** tant que les durées définitives ne sont pas confirmées par BOMOI.
-- Anonymisation des comptes médiateurs inactifs : remplacer `first_name`/`last_name` par une valeur générique et vider `languages`/`availability`, sans supprimer les lignes `activities`/`orientations` déjà liées (elles restent statistiquement utiles et sont déjà anonymes par construction).
+- **Implémenté (V2, Étape 16)** : anonymisation des comptes médiateurs inactifs depuis plus de 12 mois (`left_at`), via la fonction `SECURITY DEFINER` `purge_inactive_mediators()` (`0013_retention.sql`) — remplace `first_name`/`last_name` par une valeur générique, vide `languages`/`availability`, pose `anonymized_at`. Réservée à l'admin (revérifié dans la fonction, pas seulement supposé par l'appelant), déclenchable manuellement depuis `/reglages` — **jamais automatique/planifiée**. Ne supprime jamais les lignes `activities`/`orientations`/etc. déjà liées (statistiquement utiles, déjà anonymes par construction) ni `mediators.research_code` (pseudonyme opaque, pas une donnée identifiante en soi — le purger ne servirait aucun objectif de confidentialité et casserait la continuité des exports de recherche déjà réalisés).
+- **Encore à écrire** : purge des activités/freins/orientations/idées reçues/médiathèque/observations/sessions après « durée du programme + 3 ans » (`PRODUCT_REQUIREMENTS.md` §6.3) — bloqué sur une date de fin de programme que BOMOI n'a pas communiquée. Écrire cette requête sur une date supposée serait dangereux ; à faire dès que BOMOI confirme.
 
 ## 7. Secrets et environnement
 
@@ -76,9 +86,9 @@ Le texte RGPD d'onboarding engage chaque médiateur à « signaler immédiatemen
 
 ## 9. Revue avant mise en production
 
-Checklist minimale avant tout déploiement V1 :
+Checklist minimale avant tout déploiement :
 
-- [ ] `select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace;` confirme RLS activée sur les 9 tables.
+- [ ] `select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace;` confirme RLS activée sur les 17 tables (§2).
 - [ ] Aucune policy `using (true)` sans restriction de rôle sur une table de données de terrain.
 - [ ] Aucune colonne nom/téléphone/e-mail/identifiant sur `orientations` (grep du schéma en CI).
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` absente de tout bundle client (vérification `next build` + grep du dossier `.next/static`).

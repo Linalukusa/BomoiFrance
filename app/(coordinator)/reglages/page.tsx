@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SuccessBanner } from "@/components/forms/SuccessBanner";
-import { updateAppSettings } from "./actions";
+import { updateAppSettings, runMediatorPurge } from "./actions";
 
 /**
  * Admin uniquement — un coordinateur peut lire app_settings (RLS,
@@ -12,9 +12,9 @@ import { updateAppSettings } from "./actions";
 export default async function ReglagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; saved?: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; purged?: string }>;
 }) {
-  const { error, saved } = await searchParams;
+  const { error, saved, purged } = await searchParams;
 
   const supabase = await createClient();
   const {
@@ -52,6 +52,15 @@ export default async function ReglagesPage({
         </div>
 
         {saved === "1" && <SuccessBanner message="Enregistré avec succès." />}
+        {purged !== undefined && (
+          <SuccessBanner
+            message={
+              purged === "0"
+                ? "Aucun compte à anonymiser pour l'instant."
+                : `${purged} compte(s) anonymisé(s).`
+            }
+          />
+        )}
         {error && <p className="text-sm text-bomoi-red">{decodeURIComponent(error)}</p>}
 
         <form action={updateAppSettings} className="space-y-4 rounded-xl border border-border bg-card p-4">
@@ -92,6 +101,24 @@ export default async function ReglagesPage({
           >
             Télécharger les métriques d&apos;usage (CSV)
           </a>
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="mb-1 font-bold text-text-strong">Anonymisation des comptes inactifs</h2>
+          <p className="mb-3 text-sm leading-relaxed text-text-secondary">
+            Remplace prénom/nom par une valeur générique et vide langues/disponibilité pour tout compte
+            médiateur inactif depuis plus de 12 mois (PRODUCT_REQUIREMENTS.md §6.3). N&apos;efface jamais
+            les activités (déjà anonymes par construction) ni le code de recherche. Jamais automatique —
+            à déclencher manuellement.
+          </p>
+          <form action={runMediatorPurge}>
+            <button
+              type="submit"
+              className="w-full rounded-full border border-bomoi-red bg-card px-5 py-3 text-center text-sm font-bold text-bomoi-red"
+            >
+              Lancer l&apos;anonymisation
+            </button>
+          </form>
         </div>
       </div>
     </div>
